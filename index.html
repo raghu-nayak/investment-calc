@@ -133,7 +133,7 @@ legend.grp{
   font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;
 }
 .num input:focus{outline:none}
-.num.wide input{width:96px}
+.num.wide input{width:112px}   /* fits 5,00,00,000 */
 input[type=range]{
   -webkit-appearance:none;appearance:none;width:100%;height:22px;margin:6px 0 0;
   background:none;cursor:pointer;display:block;
@@ -502,8 +502,8 @@ footer a,.disclaimer a{color:var(--accent)}   /* --accent-2 gold falls under 4.5
     <div class="viewbar">
       <span class="vb-label" id="viewLbl">Show</span>
       <div class="seg" role="radiogroup" aria-labelledby="viewLbl">
-        <input type="radio" name="basis" id="basis-nom" value="nominal" checked><label for="basis-nom">Actual dollars</label>
-        <input type="radio" name="basis" id="basis-real" value="real"><label for="basis-real">Today's dollars</label>
+        <input type="radio" name="basis" id="basis-nom" value="nominal" checked><label for="basis-nom">Actual money</label>
+        <input type="radio" name="basis" id="basis-real" value="real"><label for="basis-real">Today's money</label>
       </div>
       <span class="chip" id="baseChip">Baseline <b id="baseVal">—</b><button type="button" id="clearBase" title="Clear baseline" aria-label="Clear baseline">&times;</button></span>
       <span class="spacer"></span>
@@ -717,6 +717,9 @@ var LIMITS = {
   initial: [0, 100000000], contrib: [0, 1000000], years: [1, 60],
   rate: [0, 50], fee: [0, 5], inflation: [0, 25], tax: [0, 75]
 };
+/* money keys: their typed cap and slider range both scale with the currency */
+var MONEY_KEYS = { initial:1, contrib:1 };
+var RANGE = { initial:{ max:1000000, step:1000 }, contrib:{ max:10000, step:50 } };
 var SHORT = {
   initial:'i', contrib:'c', freq:'f', timing:'t', indexContrib:'x', years:'y',
   rate:'r', compounding:'m', fee:'e', inflation:'n', tax:'q',
@@ -725,6 +728,12 @@ var SHORT = {
 var state = Object.assign({}, DEFAULTS);
 var baseline = null;   // { sim, label }
 
+function curScale(){ return (CUR[state.currency] || CUR.USD).scale || 1; }
+function limitFor(key){
+  var l = LIMITS[key];
+  if (!l) return null;
+  return MONEY_KEYS[key] ? [l[0], l[1] * curScale()] : l;
+}
 function params(s){
   return {
     initial: s.initial, contrib: s.contrib, freq: +s.freq, timing: s.timing,
@@ -749,6 +758,8 @@ function encodeState(){
 function applyRaw(obj){
   var inv = {};
   Object.keys(SHORT).forEach(function(k){ inv[SHORT[k]] = k; });
+  /* currency first — it sets the scale the money limits below are clamped to */
+  ['u', 'currency'].forEach(function(k){ if (obj[k] && CUR[obj[k]]) state.currency = obj[k]; });
   Object.keys(obj).forEach(function(sk){
     var key = inv[sk] || (SHORT[sk] ? sk : null);
     if (!key) return;
@@ -761,7 +772,7 @@ function applyRaw(obj){
     if (key === 'compounding') { state.compounding = [1,2,4,12].indexOf(+raw) >= 0 ? +raw : 12; return; }
     var n = parseFloat(String(raw).replace(/,/g, ''));
     if (!isFinite(n)) return;
-    var lim = LIMITS[key];
+    var lim = limitFor(key);
     state[key] = lim ? clamp(n, lim[0], lim[1]) : n;
   });
   state.years = Math.round(state.years);
@@ -798,10 +809,14 @@ function loadStored(){
 /* ================================================================
    3. FORMATTING
    ================================================================ */
+/* `scale` multiplies the money slider ranges and typed caps: a 1,000,000 top
+   end is generous in dollars, pounds and euros but low in rupees or yen. */
 var CUR = {
-  AUD:{sym:'A$', loc:'en-AU'}, USD:{sym:'$', loc:'en-US'}, CAD:{sym:'C$', loc:'en-CA'},
-  NZD:{sym:'NZ$',loc:'en-NZ'}, GBP:{sym:'£', loc:'en-GB'}, EUR:{sym:'€', loc:'de-DE'},
-  INR:{sym:'₹', loc:'en-IN'},  SGD:{sym:'S$',loc:'en-SG'}, JPY:{sym:'¥', loc:'ja-JP'}
+  AUD:{sym:'A$', loc:'en-AU', scale:1},  USD:{sym:'$', loc:'en-US', scale:1},
+  CAD:{sym:'C$', loc:'en-CA', scale:1},  NZD:{sym:'NZ$',loc:'en-NZ', scale:1},
+  GBP:{sym:'£', loc:'en-GB', scale:1},   EUR:{sym:'€', loc:'de-DE', scale:1},
+  SGD:{sym:'S$',loc:'en-SG', scale:1},   INR:{sym:'₹', loc:'en-IN', scale:50},
+  JPY:{sym:'¥', loc:'ja-JP', scale:100}
 };
 var nfPlain = null;
 function buildFormatters(){
@@ -823,6 +838,12 @@ function money(v){
 function moneyC(v){
   if (!isFinite(v)) return '—';
   var neg = v < 0, a = Math.abs(v), s;
+  if (state.currency === 'INR'){          /* rupees read in lakh and crore */
+    if (a >= 1e7)      s = trim(a / 1e7) + 'Cr';
+    else if (a >= 1e5) s = trim(a / 1e5) + 'L';
+    else               s = plain(a);
+    return (neg ? '-' : '') + sym() + s;
+  }
   if (a >= 1e12)     s = trim(a / 1e12) + 'T';
   else if (a >= 1e9) s = trim(a / 1e9) + 'B';
   else if (a >= 1e6) s = trim(a / 1e6) + 'M';
@@ -1087,7 +1108,7 @@ function growthAt(i){
   tip.textContent = '';
   var head = document.createElement('div');
   head.className = 'th';
-  head.textContent = yearLabel(pt.t) + (state.basis === 'real' ? " · today's dollars" : '');
+  head.textContent = yearLabel(pt.t) + (state.basis === 'real' ? " · today's money" : '');
   tip.appendChild(head);
   var tot = document.createElement('div');
   tot.className = 'tr tot';
@@ -1281,7 +1302,7 @@ function renderSummary(sim){
   var earnings = t.earnings / k, feesTax = (t.fees + t.tax) / k;
 
   $('#heroLabel').textContent = 'Total value after ' + sim.p.years + (sim.p.years === 1 ? ' year' : ' years') +
-    (real ? ", in today's dollars" : '');
+    (real ? ", in today's money" : '');
   $('#heroValue').textContent = money(total);
 
   var mult = invested > 0 ? total / invested : 0;
@@ -1339,7 +1360,7 @@ function renderSummary(sim){
   $('#compCapR').textContent = money(invested) + ' in → ' + money(total) + ' out';
 
   /* tiles */
-  var otherLabel = real ? 'In actual (future) dollars' : "In today's dollars";
+  var otherLabel = real ? 'In actual (future) money' : "In today's money";
   var otherVal = real ? t.bal : t.bal / t.defl;
   var tiles = [
     { k:'Amount invested',   dot:'s1', v: money(invested), m: sim.p.contrib ? contribNote(sim) : 'One-off investment' },
@@ -1407,7 +1428,7 @@ function renderSummary(sim){
   }
   $('#growthSub').textContent = real
     ? "Every figure discounted by inflation, so it is comparable with money today."
-    : 'The dollars you would actually see in the account.';
+    : 'The amounts you would actually see in the account.';
 }
 function fmtPct(v){ return (Math.round(v * 100) / 100) + '%'; }
 function compoundWord(){
@@ -1422,7 +1443,7 @@ function contribNote(sim){
 var COLS = ['Year', 'Contributions', 'Total invested', 'Earnings', 'Fees + tax', 'Balance', ''];
 function renderTable(sim){
   var real = state.basis === 'real';
-  COLS[6] = real ? 'In actual $' : "In today's $";
+  COLS[6] = real ? 'In actual ' + sym() : "In today's " + sym();
   var head = $('#tableHead');
   head.textContent = '';
   COLS.forEach(function(c, i){
@@ -1466,7 +1487,7 @@ function renderTable(sim){
   totals.forEach(function(c){ var td = document.createElement('td'); td.textContent = c; tr2.appendChild(td); });
   tf.appendChild(tr2);
   $('#yearTable').appendChild(tf);
-  $('#tableSub').textContent = 'End of each year' + (real ? ", in today's dollars" : '') +
+  $('#tableSub').textContent = 'End of each year' + (real ? ", in today's money" : '') +
     '. Contributions exclude the ' + money(sim.p.initial) + ' you started with.';
 }
 
@@ -1483,7 +1504,7 @@ function buildCSV(sim){
   L.push(['Investment growth calculator']);
   L.push(['Generated', new Date().toISOString().slice(0, 10)]);
   L.push(['Currency', state.currency]);
-  L.push(['Figures shown in', real ? "today's dollars (inflation-adjusted)" : 'actual (nominal) dollars']);
+  L.push(['Figures shown in', real ? "today's money (inflation-adjusted)" : 'actual (nominal) amounts']);
   L.push(['Disclaimer', 'General information and education only - not financial, investment, tax or legal advice. ' +
     'A hypothetical illustration assuming a constant rate of return; actual returns vary and may be negative. ' +
     'Provided "as is" with no warranty of any kind; no responsibility or liability is accepted for any error, ' +
@@ -1506,7 +1527,8 @@ function buildCSV(sim){
   L.push(['Compound earnings', Math.round(sim.total.compound / (real ? sim.total.defl : 1))]);
   L.push(['Fees and tax paid', Math.round((sim.total.fees + sim.total.tax) / (real ? sim.total.defl : 1))]);
   L.push([]);
-  L.push(['Year', 'Contributions', 'Total invested', 'Earnings after fees and tax', 'Fees and tax', 'Balance', real ? 'Balance (actual $)' : "Balance (today's $)"]);
+  L.push(['Year', 'Contributions', 'Total invested', 'Earnings after fees and tax', 'Fees and tax', 'Balance',
+          real ? 'Balance (actual money)' : "Balance (today's money)"]);
   sim.years.forEach(function(y){
     var k = real ? y.defl : 1;
     L.push([y.y, Math.round(y.contrib / k), Math.round(y.invested / k), Math.round(y.net / k),
@@ -1573,7 +1595,17 @@ function syncOne(key){
   var rng = document.getElementById(key + '_r');
   if (rng) rng.value = String(clamp(state[key], +rng.min, +rng.max));
 }
+function applyRanges(){
+  var k = curScale();
+  Object.keys(RANGE).forEach(function(key){
+    var r = document.getElementById(key + '_r');
+    if (!r) return;
+    r.max = String(RANGE[key].max * k);
+    r.step = String(RANGE[key].step * k);
+  });
+}
 function syncInputs(){
+  applyRanges();   /* before syncOne, which pins each slider inside its range */
   ['initial','contrib','years','rate','fee','inflation','tax'].forEach(syncOne);
   $('#freq').value = String(state.freq);
   $('#timing').value = state.timing;
@@ -1582,13 +1614,31 @@ function syncInputs(){
   $('#patterns').checked = !!state.patterns;
   $('#currency').value = state.currency;
   document.getElementById(state.basis === 'real' ? 'basis-real' : 'basis-nom').checked = true;
-  var off = !state.contrib;
-  ['freq','timing','indexContrib'].forEach(function(id){ document.getElementById(id).disabled = off; });
-  $('#contrib').closest('.field').classList.toggle('has-off', off);
+  syncDisable();
   Array.prototype.forEach.call(document.querySelectorAll('.aff.cur'), function(e){ e.textContent = sym(); });
   Array.prototype.forEach.call(document.querySelectorAll('.cur-min'), function(e){ e.textContent = sym() + '0'; });
-  Array.prototype.forEach.call(document.querySelectorAll('.cur-max'), function(e){ e.textContent = sym() + '1M'; });
-  Array.prototype.forEach.call(document.querySelectorAll('.cur-c-max'), function(e){ e.textContent = sym() + '10k'; });
+  var k = curScale();
+  Array.prototype.forEach.call(document.querySelectorAll('.cur-max'), function(e){ e.textContent = moneyC(RANGE.initial.max * k); });
+  Array.prototype.forEach.call(document.querySelectorAll('.cur-c-max'), function(e){ e.textContent = moneyC(RANGE.contrib.max * k); });
+}
+
+/* Rewrite a money field in place while it is being typed in, keeping the
+   caret the same number of digits from the left so the separators appearing
+   underneath never push it out of position. */
+function regroup(el, out){
+  var before = el.value.slice(0, el.selectionStart || 0).replace(/[^0-9]/g, '').length;
+  if (el.value === out) return;
+  el.value = out;
+  var pos = out.length, seen = 0;
+  if (before <= 0){
+    pos = 0;
+  } else {
+    for (var i = 0; i < out.length; i++){
+      var c = out.charCodeAt(i);
+      if (c >= 48 && c <= 57 && ++seen === before){ pos = i + 1; break; }
+    }
+  }
+  try { el.setSelectionRange(pos, pos); } catch(e){}
 }
 
 function onNumInput(el){
@@ -1596,15 +1646,17 @@ function onNumInput(el){
   /* money fields hold whole currency units, so strip every non-digit: the
      grouping separator is "." in de-DE and "," in en-AU, and neither may be
      mistaken for a decimal point. Percent/year fields keep the point. */
-  var raw = el.getAttribute('data-kind') === 'money'
+  var isMoney = el.getAttribute('data-kind') === 'money';
+  var raw = isMoney
     ? el.value.replace(/[^0-9]/g, '')
     : el.value.replace(/[^0-9.]/g, '');
   var n = parseFloat(raw);
   if (!isFinite(n)) n = 0;
-  var lim = LIMITS[key] || [0, 1e12];
+  var lim = limitFor(key) || [0, 1e12];
   n = clamp(n, lim[0], lim[1]);
   if (key === 'years') n = Math.max(1, Math.round(n));
   state[key] = n;
+  if (isMoney) regroup(el, raw === '' ? '' : plain(n));
   var rng = document.getElementById(key + '_r');
   if (rng) rng.value = String(clamp(n, +rng.min, +rng.max));
   if (key === 'contrib') syncDisable();
@@ -1620,9 +1672,18 @@ function onRange(el){
   if (key === 'contrib') syncDisable();
   afterChange();
 }
+/* Contribution of nothing means the frequency, timing and indexing controls do
+   nothing either. Both halves of that state — the disabled attribute and the
+   dimming — live here, so a change to the contribution can never clear one and
+   leave the other stuck on. */
 function syncDisable(){
   var off = !state.contrib;
-  ['freq','timing','indexContrib'].forEach(function(id){ document.getElementById(id).disabled = off; });
+  ['freq','timing','indexContrib'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.disabled = off;
+  });
+  var field = $('#contrib').closest('.field');
+  if (field) field.classList.toggle('has-off', off);
 }
 
 function setTheme(t){

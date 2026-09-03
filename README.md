@@ -68,8 +68,13 @@ everything above that: the returns your returns went on to earn. Together with t
 amount invested they always sum to the balance, which is why the stacked area chart
 can be read as a straight decomposition of the total.
 
-`Today's dollars` divides every figure by `(1 + inflation)^t`, so a 40-year balance is
+`Today's money` divides every figure by `(1 + inflation)^t`, so a 40-year balance is
 comparable with money in your pocket now.
+
+Slider ranges and typed caps scale with the selected currency, so the maxima stay
+sensible in rupees and yen rather than topping out at a million. Rupee amounts are
+grouped and abbreviated the Indian way — `5,00,00,000` and `₹5Cr` / `₹5L` — as you type
+and on the chart axes.
 
 ## Things worth knowing
 
