@@ -963,6 +963,13 @@ function renderGrowth(sim){
   });
   if (dmax <= 0) dmax = 1000;   /* nothing invested: still draw a sane axis */
 
+  /* Inflation overlay: the same balance discounted to today's money. Only drawn
+     while showing actual money (in today's-money mode the stack already IS this
+     line) and only when inflation is non-zero, or it would sit on top of the
+     total and say nothing. Always <= T3, so it cannot widen the y domain. */
+  var REAL = (state.basis === 'nominal' && state.inflation > 0)
+    ? pts.map(function(pt){ return pt.bal / pt.defl; }) : null;
+
   /* baseline series mapped onto this time axis */
   var BL = null, blLast = null;
   if (baseline){
@@ -1031,6 +1038,16 @@ function renderGrowth(sim){
   /* total line */
   s.push('<path d="' + line(T3) + '" fill="none" stroke="' + cols['--s3'] + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>');
 
+  /* today's-money overlay — a reference mark, so neutral ink, never a 4th hue.
+     A 2px surface ring (the wider card-coloured pass underneath) keeps it
+     legible where it crosses the coloured bands. */
+  if (REAL){
+    s.push('<path d="' + line(REAL) + '" fill="none" stroke="' + cols['--card'] +
+           '" stroke-width="6" stroke-linecap="round" opacity="0.8"></path>');
+    s.push('<path d="' + line(REAL) + '" fill="none" stroke="' + cols['--ink'] +
+           '" stroke-width="2" stroke-dasharray="5 3.5" stroke-linecap="round"></path>');
+  }
+
   /* baseline overlay */
   if (BL){
     s.push('<path d="' + line(BL) + '" fill="none" stroke="' + cols['--ink-3'] +
@@ -1058,6 +1075,19 @@ function renderGrowth(sim){
     if (blLast) put(Y(blLast.v) + 3, 'Baseline', cols['--ink-3']);
   }
 
+  /* The overlay ends wherever inflation puts it — frequently right on a band's
+     mid-label. Naming it in the right gutter would either displace that name or
+     land ~15px adrift, pointing at the wrong mark, so it is labelled on the line
+     itself. paint-order keeps the halo behind the glyphs, and it survives the
+     narrow layout, which has no gutter at all. */
+  if (REAL){
+    var rn = REAL.length - 1;
+    var rly = clamp(Y(REAL[rn]) - 9, T + 12, T + plotH - 6);
+    s.push('<text x="' + r1(L + plotW - 7) + '" y="' + r1(rly) + '" text-anchor="end" font-size="10.5"' +
+           ' font-weight="600" fill="' + cols['--ink'] + '" stroke="' + cols['--card'] + '" stroke-width="3.5"' +
+           ' paint-order="stroke" stroke-linejoin="round">' + esc("Today's money") + '</text>');
+  }
+
   s.push('<g id="gHover"></g>');
   s.push('<rect x="' + L + '" y="' + T + '" width="' + plotW + '" height="' + plotH + '" fill="transparent" pointer-events="all" id="gHit"></rect>');
 
@@ -1067,7 +1097,7 @@ function renderGrowth(sim){
   svg.setAttribute('aria-label', 'Growth over time — stacked area chart. Use the left and right arrow keys to step through it.');
   svg.innerHTML = s.join('');
 
-  G = { svg:svg, wrap:wrap, pts:pts, T1:T1, T2:T2, T3:T3, INV:INV, BL:BL,
+  G = { svg:svg, wrap:wrap, pts:pts, T1:T1, T2:T2, T3:T3, INV:INV, BL:BL, REAL:REAL,
         L:L, T:T, plotW:plotW, plotH:plotH, W:W, H:H, domain:domain, years:years, cols:cols, i:-1 };
 
   var d = sim.total;
@@ -1075,6 +1105,10 @@ function renderGrowth(sim){
     'Stacked area chart. Over ' + years + ' years the balance grows to ' + money(basisTotal(sim)) +
     ', made up of ' + money(d.invested) + ' invested, ' + money(d.simple) + ' simple earnings and ' +
     money(d.compound) + ' compound earnings. The year-by-year table below carries every value.';
+  if (REAL){
+    $('#growthDesc').textContent += " A dashed line tracks the same balance in today's money, " +
+      money(REAL[REAL.length - 1]) + ' by the end.';
+  }
 }
 
 function baselineAt(t){
@@ -1100,6 +1134,10 @@ function growthAt(i){
     h.push('<circle cx="' + r1(x) + '" cy="' + r1(Y(p[0])) + '" r="4.5" fill="' + c[p[1]] +
            '" stroke="' + c['--card'] + '" stroke-width="2"></circle>');
   });
+  if (G.REAL){
+    h.push('<circle cx="' + r1(x) + '" cy="' + r1(Y(G.REAL[i])) + '" r="4" fill="' + c['--ink'] +
+           '" stroke="' + c['--card'] + '" stroke-width="2"></circle>');
+  }
   if (G.BL && G.BL[i] != null){
     h.push('<circle cx="' + r1(x) + '" cy="' + r1(Y(G.BL[i])) + '" r="4" fill="' + c['--ink-3'] +
            '" stroke="' + c['--card'] + '" stroke-width="2"></circle>');
@@ -1124,6 +1162,17 @@ function growthAt(i){
   tot.appendChild(txt('span', 'tn', 'Total value'));
   tot.appendChild(txt('span', 'tv', money(val(pt, 'bal'))));
   tip.appendChild(tot);
+  if (G.REAL){
+    var rw = document.createElement('div');
+    rw.className = 'tr';
+    var rk = document.createElement('span');
+    rk.className = 'tk';
+    rk.style.background = 'repeating-linear-gradient(90deg,' + c['--ink'] + ' 0 4px,transparent 4px 7px)';
+    rw.appendChild(rk);
+    rw.appendChild(txt('span', 'tn', "In today's money"));   /* short enough to stay on one line */
+    rw.appendChild(txt('span', 'tv', money(G.REAL[i])));
+    tip.appendChild(rw);
+  }
   rows.forEach(function(r){
     var el = document.createElement('div');
     el.className = 'tr';
@@ -1153,7 +1202,8 @@ function growthAt(i){
   tip.setAttribute('aria-hidden', 'false');
   $('#growthLive').textContent = yearLabel(pt.t) + ': total ' + money(val(pt, 'bal')) +
     ', invested ' + money(val(pt, 'b1')) + ', simple earnings ' + money(val(pt, 'b2')) +
-    ', compound earnings ' + money(val(pt, 'b3'));
+    ', compound earnings ' + money(val(pt, 'b3')) +
+    (G.REAL ? ", worth " + money(G.REAL[i]) + " in today's money" : '');
 }
 function txt(tag, cls, s){
   var e = document.createElement(tag);
@@ -1309,6 +1359,7 @@ function renderSummary(sim){
   var t = sim.total, real = state.basis === 'real', k = real ? t.defl : 1;
   var total = t.bal / k, invested = t.invested / k, simple = t.simple / k, compound = t.compound / k;
   var earnings = t.earnings / k, feesTax = (t.fees + t.tax) / k;
+  var lostNom = t.bal - t.bal / t.defl;    /* buying power inflation takes, in actual money */
 
   $('#heroLabel').textContent = 'Total value after ' + sim.p.years + (sim.p.years === 1 ? ' year' : ' years') +
     (real ? ", in today's money" : '');
@@ -1377,7 +1428,9 @@ function renderSummary(sim){
     { k:'Compound earnings', dot:'s3', v: money(compound), m:'Return on your returns' },
     { k:'Fees + tax paid',   dot:'',   v: money(feesTax),  m: fmtPct(state.fee) + ' fee, ' + fmtPct(state.tax) + ' tax on earnings' },
     { k:'Return after fees + tax', dot:'', v: fmtPct(Math.round(sim.ra * 10000) / 100), m: fmtPct(state.rate) + ' gross, compounded ' + compoundWord(), neg: sim.ra < 0 },
-    { k: otherLabel,         dot:'',   v: money(otherVal), m: fmtPct(state.inflation) + ' inflation for ' + sim.p.years + ' yrs' }
+    { k: otherLabel,         dot:'',   v: money(otherVal),
+      m: fmtPct(state.inflation) + ' inflation for ' + sim.p.years + ' yrs' +
+         (lostNom > 0.5 ? ' · ' + money(lostNom) + ' of buying power gone' : '') }
   ];
   var host = $('#tiles');
   host.textContent = '';
@@ -1422,6 +1475,17 @@ function renderSummary(sim){
     u.appendChild(txt('span', 'val', money(t.under / k)));
     lg.appendChild(u);
   }
+  if (!real && state.inflation > 0){
+    var rl = document.createElement('span');
+    rl.className = 'lg';
+    var rs = document.createElement('span');
+    rs.className = 'swl';
+    rs.style.background = 'repeating-linear-gradient(90deg,' + cssv('--ink') + ' 0 4px,transparent 4px 7px)';
+    rl.appendChild(rs);
+    rl.appendChild(document.createTextNode("Worth in today's money"));
+    rl.appendChild(txt('span', 'val', money(t.bal / t.defl)));
+    lg.appendChild(rl);
+  }
   if (baseline){
     var b = document.createElement('span');
     b.className = 'lg';
@@ -1437,7 +1501,9 @@ function renderSummary(sim){
   }
   $('#growthSub').textContent = real
     ? "Every figure discounted by inflation, so it is comparable with money today."
-    : 'The amounts you would actually see in the account.';
+    : state.inflation > 0
+      ? "The amounts you would actually see. The dashed line is what they buy in today's money."
+      : 'The amounts you would actually see in the account.';
 }
 function fmtPct(v){ return (Math.round(v * 100) / 100) + '%'; }
 function compoundWord(){

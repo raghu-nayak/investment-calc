@@ -69,7 +69,15 @@ amount invested they always sum to the balance, which is why the stacked area ch
 can be read as a straight decomposition of the total.
 
 `Today's money` divides every figure by `(1 + inflation)^t`, so a 40-year balance is
-comparable with money in your pocket now.
+comparable with money in your pocket now. Each year is discounted on its own date, not
+by a single factor for the whole run.
+
+While `Actual money` is selected, the growth chart also draws that discounted balance as
+a dashed neutral line across the stack: the gap between it and the top of the stack is
+what inflation takes. It is a reference mark rather than a fourth series, so it wears an
+ink colour, is named in the legend and the right-hand gutter, and appears in the
+crosshair tooltip. It is hidden when inflation is `0` (it would sit on the total) and in
+`Today's money` mode (the stack already *is* that line).
 
 Slider ranges and typed caps scale with the selected currency, so the maxima stay
 sensible in rupees and yen rather than topping out at a million. Rupee amounts are
