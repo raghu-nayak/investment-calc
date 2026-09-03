@@ -1251,20 +1251,30 @@ function renderSens(sim){
   var cols = {};
   ['--accent','--muted-bar','--grid','--ink','--ink-2','--ink-3','--card'].forEach(function(k){ cols[k] = cssv(k); });
 
-  var base = state.rate, offs = [-3, -1.5, 0, 1.5, 3], seen = {}, rates = [];
+  /* Your own rate, exactly as you typed it, and 1.5 and 3 points either side.
+     The current bar is the one built from the zero offset, not one picked out
+     afterwards by comparing floats: every candidate used to be rounded to a
+     single decimal first, so a rate of 7.25 produced a 7.3% bar that matched
+     nothing and the highlight vanished. Zero goes first so that a rate near
+     either end, where the clamp collapses two candidates into one, still
+     keeps its flag. */
+  var base = state.rate, offs = [0, -3, -1.5, 1.5, 3], seen = {}, rates = [];
   offs.forEach(function(o){
-    var r = Math.round(clamp(base + o, 0, 50) * 10) / 10;
-    if (!seen[r]){ seen[r] = 1; rates.push(r); }
+    var r = o === 0 ? base : clamp(base + o, 0, 50);
+    var key = r.toFixed(4);
+    if (!seen[key]){ seen[key] = 1; rates.push({ rate: r, isCur: o === 0 }); }
   });
-  rates.sort(function(a, b){ return a - b; });
+  rates.sort(function(a, b){ return a.rate - b.rate; });
 
   var cur = basisTotal(sim), dmax = 0;
-  var bars = rates.map(function(r){
-    var p = params(state); p.rate = r / 100;
-    var sm = (Math.abs(r - base) < 1e-9) ? sim : simulate(p);
+  var bars = rates.map(function(rr){
+    var p = params(state); p.rate = rr.rate / 100;
+    var sm = rr.isCur ? sim : simulate(p);
     var v = basisTotal(sm);
     if (v > dmax) dmax = v;
-    return { rate: r, v: v, isCur: Math.abs(r - base) < 1e-9, delta: v - cur };
+    /* labelled at two decimals, the same as the field holds — neighbours are
+       1.5 apart, so rounding can never label two bars the same */
+    return { rate: Math.round(rr.rate * 100) / 100, v: v, isCur: rr.isCur, delta: v - cur };
   });
   if (dmax <= 0) dmax = 1000;
 
@@ -1314,7 +1324,8 @@ function renderSens(sim){
   $('#sensDesc').textContent = 'Column chart of the final balance at ' +
     bars.map(function(b){ return b.rate + '% (' + money(b.v) + ')'; }).join(', ') + '.';
   $('#sensSub').textContent = 'Same contributions over the same ' + sim.p.years +
-    ' years — only the rate of return changes. Your ' + state.rate + '% is highlighted.';
+    ' years — only the rate of return changes. Your ' +
+    (Math.round(state.rate * 100) / 100) + '% is highlighted.';
 }
 
 function sensAt(k){
