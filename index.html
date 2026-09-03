@@ -1,0 +1,1849 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Investment Growth Calculator</title>
+<meta name="description" content="Interactive compound investment growth calculator: contributions, rate of return, fees, tax and inflation, with year-by-year charts and tables.">
+<meta name="color-scheme" content="dark light">
+<meta name="theme-color" content="#272B2F">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2321252A'/%3E%3Cpath d='M5 24 L12 16 L18 20 L27 8' fill='none' stroke='%23F6B72B' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='27' cy='8' r='3' fill='%23F6B72B'/%3E%3C/svg%3E">
+<style>
+/* ============================================================
+   Design tokens.
+   Palette lifted from mortgage.monster's MUI theme:
+     dark  primary #F6B72B  secondary #7FB09F  bg #272B2F / paper #21252A
+     light primary #176184  secondary #73AF9A  bg #F8F8F8 / paper #FFFFFF
+   Series colours are re-stepped from the same hue families so they clear
+   the OKLCH lightness band, chroma floor, CVD and contrast checks on both
+   chart surfaces (validated, not eyeballed).
+   ============================================================ */
+:root{
+  --r:3px;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif;
+  --dur:.18s;
+}
+html[data-theme="dark"]{
+  --bg:#272B2F; --card:#21252A; --sunken:#1B1F23; --raised:#2C3137;
+  --hair:#373D45; --grid:#31373E;
+  --ink:#FAFAFA; --ink-2:#BFC5CB; --ink-3:#8E959C;
+  --accent:#F6B72B; --accent-2:#E08301; --accent-ink:#21252A; --accent-soft:rgba(246,182,44,.16);
+  --sec:#7FB09F; --danger:#F7403A; --warn:#FF9800;
+  --s1:#3788D5; --s2:#2DAB75; --s3:#C48001;
+  --muted-bar:#4A525B;
+  --shadow:0 1px 2px rgba(0,0,0,.45),0 10px 28px rgba(0,0,0,.26);
+  --track:#31373E;
+}
+html[data-theme="light"]{
+  --bg:#F8F8F8; --card:#FFFFFF; --sunken:#F1F3F4; --raised:#FFFFFF;
+  --hair:#DFE3E6; --grid:#E9ECEE;
+  --ink:#333333; --ink-2:#545C63; --ink-3:#6E767D;
+  --accent:#176184; --accent-2:#C68712; --accent-ink:#FFFFFF; --accent-soft:rgba(23,97,132,.10);
+  --sec:#73AF9A; --danger:#C62828; --warn:#E08301;
+  --s1:#0262AB; --s2:#039370; --s3:#C99005;
+  --muted-bar:#C3CAD0;
+  --shadow:0 1px 2px rgba(16,24,32,.05),0 8px 22px rgba(16,24,32,.07);
+  --track:#E4E8EB;
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);
+  font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+}
+h1,h2,h3,p{margin:0}
+button,input,select{font:inherit;color:inherit}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+.skip{position:absolute;left:12px;top:-48px;z-index:20;background:var(--accent);color:var(--accent-ink);padding:8px 14px;border-radius:var(--r);font-weight:700;transition:top var(--dur)}
+.skip:focus{top:12px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* ---------- top bar ---------- */
+.topbar{
+  display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;
+  max-width:1400px;margin:0 auto;padding:22px 20px 16px;
+}
+.brand{display:flex;align-items:center;gap:12px;flex:1 1 320px;min-width:0}
+.brand svg{flex:none;width:38px;height:38px}
+h1{font-size:19px;font-weight:700;letter-spacing:-.35px;line-height:1.2}
+.sub{color:var(--ink-3);font-size:12.5px;margin-top:2px}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex:none}
+
+/* ---------- generic controls ---------- */
+.btn{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--raised);border:1px solid var(--hair);color:var(--ink-2);
+  border-radius:var(--r);padding:7px 11px;font-size:12.5px;font-weight:500;
+  cursor:pointer;transition:background var(--dur),border-color var(--dur),color var(--dur);
+  white-space:nowrap;
+}
+.btn:hover{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+.btn:active{transform:translateY(.5px)}
+.btn svg{width:14px;height:14px;flex:none}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:700}
+.btn-primary:hover{background:var(--accent-2);border-color:var(--accent-2);color:var(--accent-ink)}
+.btn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--ink)}
+select.sel{
+  background:var(--raised);border:1px solid var(--hair);border-radius:var(--r);
+  padding:7px 9px;font-size:12.5px;cursor:pointer;
+}
+select.sel:hover{border-color:var(--accent)}
+
+/* ---------- layout ---------- */
+.layout{
+  display:grid;grid-template-columns:minmax(286px,352px) minmax(0,1fr);
+  gap:18px;max-width:1400px;margin:0 auto;padding:0 20px 40px;align-items:start;
+}
+.panel{background:var(--card);border:1px solid var(--hair);border-radius:var(--r);box-shadow:var(--shadow);min-width:0}
+/* grid items must be allowed below their min-content, or the nowrap table
+   inflates the whole column and the page scrolls sideways */
+.layout > *,.results > *{min-width:0}
+/* Keep the sidebar down to a narrow width: a full-width single column would
+   strand each label and its value at opposite edges of the panel. */
+@media (max-width:840px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  .inputs{padding-bottom:18px}
+}
+
+/* ---------- inputs panel ---------- */
+.inputs{padding:4px 18px 18px}
+@media (min-width:841px){
+  .inputs{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto;overscroll-behavior:contain}
+}
+fieldset{border:0;margin:0;padding:0}
+legend.grp{
+  display:block;width:100%;padding:16px 0 10px;margin:0;
+  font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ink-3);
+}
+.field{padding:9px 0;border-top:1px solid var(--grid)}
+.field:first-of-type{border-top:0}
+.field-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.field-head label{font-size:13px;font-weight:500;color:var(--ink-2)}
+.num{
+  display:inline-flex;align-items:center;background:var(--sunken);
+  border:1px solid var(--hair);border-radius:var(--r);
+  transition:border-color var(--dur),box-shadow var(--dur);
+}
+.num:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.num .aff{padding:0 0 0 8px;color:var(--ink-3);font-size:12.5px;user-select:none}
+.num .aff.suf{padding:0 8px 0 0}
+.num input{
+  width:76px;border:0;background:none;padding:6px 6px;text-align:right;
+  font-size:13.5px;font-weight:600;font-variant-numeric:tabular-nums;
+}
+.num input:focus{outline:none}
+.num.wide input{width:96px}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:22px;margin:6px 0 0;
+  background:none;cursor:pointer;display:block;
+}
+input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:2px;background:var(--track)}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:15px;height:15px;border-radius:50%;
+  background:var(--accent);border:2px solid var(--card);margin-top:-6px;
+  box-shadow:0 0 0 1px var(--accent);
+}
+input[type=range]:hover::-webkit-slider-thumb{background:var(--accent-2);box-shadow:0 0 0 1px var(--accent-2),0 0 0 6px var(--accent-soft)}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--track)}
+input[type=range]::-moz-range-thumb{
+  width:13px;height:13px;border-radius:50%;background:var(--accent);
+  border:2px solid var(--card);box-shadow:0 0 0 1px var(--accent);
+}
+input[type=range]:disabled{cursor:not-allowed;opacity:.45}
+.ticks{display:flex;justify-content:space-between;color:var(--ink-3);font-size:10.5px;margin-top:-1px;font-variant-numeric:tabular-nums}
+.hint{color:var(--ink-3);font-size:11.5px;margin-top:5px}
+.row2{display:flex;gap:8px;margin-top:9px}
+.row2 > label{flex:1 1 0;min-width:0}
+.lbl-sm{display:block;font-size:11px;color:var(--ink-3);margin-bottom:3px}
+.row2 select{width:100%}
+.check{display:flex;align-items:flex-start;gap:9px;margin-top:11px;cursor:pointer}
+.check input{
+  appearance:none;-webkit-appearance:none;flex:none;width:16px;height:16px;margin:1px 0 0;
+  border:1.5px solid var(--hair);border-radius:2px;background:var(--sunken);cursor:pointer;
+  position:relative;transition:background var(--dur),border-color var(--dur);
+}
+.check input:checked{background:var(--accent);border-color:var(--accent)}
+.check input:checked::after{
+  content:"";position:absolute;left:4px;top:1px;width:5px;height:9px;
+  border:solid var(--accent-ink);border-width:0 2px 2px 0;transform:rotate(42deg);
+}
+.check span{font-size:12.5px;color:var(--ink-2)}
+.field.has-off .row2,.field.has-off .check{opacity:.5}
+select.sel:disabled,.check input:disabled{cursor:not-allowed}
+.act-row{display:flex;gap:8px;flex-wrap:wrap;padding-top:16px;margin-top:14px;border-top:1px solid var(--grid)}
+.disclaimer{color:var(--ink-3);font-size:11px;margin-top:14px;line-height:1.5}
+
+/* ---------- results column ---------- */
+.results{display:grid;gap:18px;min-width:0}
+.viewbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:11px 14px;background:var(--card);border:1px solid var(--hair);
+  border-radius:var(--r);box-shadow:var(--shadow);
+}
+.seg{display:inline-flex;background:var(--sunken);border:1px solid var(--hair);border-radius:var(--r);padding:2px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{
+  padding:5px 11px;font-size:12.5px;font-weight:500;color:var(--ink-3);
+  border-radius:2px;cursor:pointer;transition:background var(--dur),color var(--dur);white-space:nowrap;
+}
+.seg label:hover{color:var(--ink)}
+.seg input:checked + label{background:var(--accent);color:var(--accent-ink);font-weight:700}
+.seg input:focus-visible + label{outline:2px solid var(--accent);outline-offset:2px}
+.vb-label{font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--ink-3)}
+.spacer{flex:1 1 auto}
+.vb-actions{display:flex;gap:8px;flex-wrap:wrap}
+.chip{
+  display:none;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);
+  background:var(--sunken);border:1px dashed var(--hair);border-radius:var(--r);padding:5px 9px;
+}
+.chip.on{display:inline-flex}
+.chip b{font-variant-numeric:tabular-nums}
+.chip button{background:none;border:0;color:var(--ink-3);cursor:pointer;padding:0 0 0 2px;font-size:14px;line-height:1}
+.chip button:hover{color:var(--danger)}
+
+/* ---------- hero ---------- */
+.hero{padding:20px 20px 18px}
+.tile-label{font-size:12px;color:var(--ink-3);letter-spacing:.2px}
+.hero-value{font-size:clamp(34px,5.2vw,52px);font-weight:700;letter-spacing:-1.6px;line-height:1.05;margin-top:4px}
+.hero-note{font-size:12.5px;color:var(--ink-2);margin-top:6px}
+.hero-note b{color:var(--ink);font-weight:600}
+.compbar{display:flex;gap:2px;height:30px;margin-top:16px;background:var(--card);border-radius:2px;overflow:visible}
+.compseg{
+  position:relative;min-width:2px;border-radius:2px;display:flex;align-items:center;
+  padding:0 8px;overflow:hidden;font-size:11px;font-weight:700;letter-spacing:.2px;white-space:nowrap;
+  transition:filter var(--dur);
+}
+.compseg.s1{background:var(--s1)}
+.compseg.s2{background:var(--s2)}
+.compseg.s3{background:var(--s3)}
+.compseg.under{background:repeating-linear-gradient(135deg,var(--danger) 0 3px,transparent 3px 7px);border:1px solid var(--danger)}
+.compbar:hover .compseg{filter:saturate(.6)}
+.compbar .compseg:hover{filter:none}
+.comp-cap{display:flex;justify-content:space-between;gap:12px;color:var(--ink-3);font-size:11px;margin-top:7px}
+
+/* ---------- tiles ---------- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:14px}
+.tile{padding:14px 15px 15px}
+.tile .k{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--ink-3);min-height:17px}
+.dot{width:9px;height:9px;border-radius:2px;flex:none}
+.dot.s1{background:var(--s1)}.dot.s2{background:var(--s2)}.dot.s3{background:var(--s3)}
+.tile .v{font-size:22px;font-weight:600;letter-spacing:-.6px;margin-top:5px}
+.tile .m{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+.tile .v.neg{color:var(--danger)}
+
+/* ---------- chart cards ---------- */
+.card-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:16px 18px 0}
+h2{font-size:14.5px;font-weight:700;letter-spacing:-.2px}
+.card-sub{font-size:12px;color:var(--ink-3);margin-top:3px}
+.chart-wrap{position:relative;padding:6px 12px 4px;touch-action:pan-y}
+.chart-wrap svg{display:block;width:100%;height:auto;overflow:visible}
+.chart-wrap svg:focus{outline:none}
+.chart-wrap svg:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;padding:2px 18px 16px}
+.lg{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2)}
+.lg .sw{width:12px;height:9px;border-radius:2px;flex:none}
+.lg .swl{width:14px;height:2px;border-radius:2px;flex:none}
+.lg .val{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.tip{
+  position:absolute;z-index:6;pointer-events:none;opacity:0;
+  min-width:172px;max-width:250px;padding:9px 11px;
+  background:var(--raised);border:1px solid var(--hair);border-radius:var(--r);
+  box-shadow:0 6px 22px rgba(0,0,0,.28);
+  transition:opacity var(--dur);
+}
+.tip.on{opacity:1}
+.tip .th{font-size:11px;color:var(--ink-3);letter-spacing:.3px;margin-bottom:6px}
+.tip .tr{display:flex;align-items:center;gap:8px;margin-top:4px}
+.tip .tk{width:14px;height:2px;border-radius:2px;flex:none}
+.tip .tv{font-size:13px;font-weight:700;font-variant-numeric:tabular-nums;margin-left:auto;letter-spacing:-.2px}
+.tip .tn{font-size:11.5px;color:var(--ink-3)}
+.tip .tot{border-top:1px solid var(--grid);margin-top:7px;padding-top:6px}
+.tip .tot .tn{color:var(--ink-2)}
+.tip .tot .tv{font-size:15px}
+
+/* ---------- table ---------- */
+.table-card{padding-bottom:4px}
+.table-scroll{max-height:420px;overflow:auto;margin:12px 0 0;border-top:1px solid var(--grid)}
+table{border-collapse:separate;border-spacing:0;width:100%;font-size:12.5px}
+caption{text-align:left;padding:0 18px 8px;color:var(--ink-3);font-size:12px}
+th,td{padding:8px 10px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+th:first-child,td:first-child{text-align:left;padding-left:18px;position:sticky;left:0;background:var(--card)}
+td:last-child,th:last-child{padding-right:18px}
+thead th{
+  position:sticky;top:0;z-index:2;background:var(--card);color:var(--ink-3);
+  font-weight:600;font-size:11px;letter-spacing:.4px;text-transform:uppercase;
+  border-bottom:1px solid var(--hair);
+}
+thead th:first-child{z-index:3}
+tbody tr:nth-child(even) td{background:var(--sunken)}
+tbody tr:nth-child(even) td:first-child{background:var(--sunken)}
+tbody tr:hover td{background:var(--accent-soft)}
+tbody td{border-bottom:1px solid var(--grid)}
+tbody td.em{font-weight:600;color:var(--ink)}
+tfoot td{font-weight:700;border-top:1px solid var(--hair);background:var(--card)}
+
+footer{max-width:1400px;margin:0 auto;padding:4px 20px 44px;color:var(--ink-3);font-size:11.5px;line-height:1.6}
+footer a,.disclaimer a{color:var(--accent)}   /* --accent-2 gold falls under 4.5:1 on white */
+.legal{margin-top:14px;padding:15px 17px;background:var(--card);border:1px solid var(--hair);border-radius:var(--r)}
+.legal h2{font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--ink-3);margin-bottom:9px}
+.legal p{margin-top:8px}
+.legal p:first-of-type{margin-top:0}
+.legal strong{color:var(--ink-2);font-weight:600}
+
+@media (max-width:560px){
+  .topbar{padding:16px 14px 12px}
+  .layout{padding:0 14px 30px;gap:14px}
+  .results{gap:14px}
+  .inputs{padding:2px 14px 16px}
+  .hero{padding:16px 15px 15px}
+  .card-head,.legend{padding-left:14px;padding-right:14px}
+  th:first-child,td:first-child{padding-left:14px}
+  .tiles{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- print ---------- */
+@media print{
+  html[data-theme]{
+    --bg:#fff;--card:#fff;--sunken:#fff;--raised:#fff;--hair:#bbb;--grid:#ddd;
+    --ink:#111;--ink-2:#333;--ink-3:#555;--shadow:none;
+  }
+  .topbar-actions,.act-row,.viewbar .btn,.chip button,input[type=range],.ticks,.skip{display:none!important}
+  .layout{display:block;max-width:none;padding:0}
+  .inputs{position:static;max-height:none;overflow:visible;page-break-after:avoid}
+  /* paper is wide: set the assumptions two-up instead of stretching each row */
+  .fields{columns:2;column-gap:28px}
+  .fields .field{border-top:0;border-bottom:1px solid var(--grid);break-inside:avoid;padding:8px 0}
+  .fields .field:last-child{border-bottom:0}
+  .panel,.viewbar{box-shadow:none;break-inside:avoid}
+  .results{margin-top:14px}
+  .table-scroll{max-height:none;overflow:visible}
+  .tip{display:none}
+}
+</style>
+<script>
+/* Set the theme before first paint so a light-mode reader never sees a dark flash. */
+(function(){
+  try {
+    var t = localStorage.getItem('igc.theme');
+    if (t !== 'dark' && t !== 'light'){
+      t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  } catch(e){}
+})();
+</script>
+</head>
+<body>
+<a class="skip" href="#results">Skip to results</a>
+
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true">
+      <rect width="32" height="32" rx="6" fill="var(--accent-soft)"></rect>
+      <path d="M5 24 L12 16 L18 20 L27 8" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"></path>
+      <circle cx="27" cy="8" r="2.8" fill="var(--accent)"></circle>
+    </svg>
+    <div>
+      <h1>Investment Growth Calculator</h1>
+      <p class="sub">What contributions, returns, fees, tax and inflation do to a portfolio over time.</p>
+    </div>
+  </div>
+  <div class="topbar-actions">
+    <label class="sr-only" for="currency">Currency</label>
+    <select class="sel" id="currency" title="Currency">
+      <option value="AUD">A$ AUD</option>
+      <option value="USD">$ USD</option>
+      <option value="CAD">C$ CAD</option>
+      <option value="NZD">NZ$ NZD</option>
+      <option value="GBP">£ GBP</option>
+      <option value="EUR">€ EUR</option>
+      <option value="INR">₹ INR</option>
+      <option value="SGD">S$ SGD</option>
+      <option value="JPY">¥ JPY</option>
+    </select>
+    <button class="btn" id="themeBtn" type="button" aria-pressed="false">
+      <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"></svg>
+      <span id="themeTxt">Light</span>
+    </button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ============ INPUTS ============ -->
+  <form class="panel inputs" id="inputs" autocomplete="off" novalidate>
+    <fieldset>
+      <legend class="grp">What you invest</legend>
+      <div class="fields">
+
+      <div class="field">
+        <div class="field-head">
+          <label for="initial">Initial investment</label>
+          <span class="num wide"><span class="aff cur">$</span><input id="initial" type="text" inputmode="decimal" data-key="initial" data-kind="money"></span>
+        </div>
+        <input type="range" id="initial_r" data-for="initial" min="0" max="1000000" step="1000" aria-label="Initial investment slider">
+        <div class="ticks"><span class="cur-min">$0</span><span class="cur-max">$1M</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="contrib">Additional contribution</label>
+          <span class="num wide"><span class="aff cur">$</span><input id="contrib" type="text" inputmode="decimal" data-key="contrib" data-kind="money"></span>
+        </div>
+        <input type="range" id="contrib_r" data-for="contrib" min="0" max="10000" step="50" aria-label="Additional contribution slider">
+        <div class="ticks"><span class="cur-min">$0</span><span class="cur-c-max">$10k</span></div>
+        <div class="row2">
+          <label><span class="lbl-sm">How often</span>
+            <select class="sel" id="freq" data-key="freq">
+              <option value="12">Every month</option>
+              <option value="1">Every year</option>
+            </select>
+          </label>
+          <label><span class="lbl-sm">Paid in at</span>
+            <select class="sel" id="timing" data-key="timing">
+              <option value="begin">Start of period</option>
+              <option value="end">End of period</option>
+            </select>
+          </label>
+        </div>
+        <label class="check"><input type="checkbox" id="indexContrib" data-key="indexContrib"><span>Raise contributions with inflation each year</span></label>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="years">Time to grow</label>
+          <span class="num"><input id="years" type="text" inputmode="numeric" data-key="years" data-kind="int"><span class="aff suf">yrs</span></span>
+        </div>
+        <input type="range" id="years_r" data-for="years" min="1" max="60" step="1" aria-label="Time to grow slider">
+        <div class="ticks"><span>1 yr</span><span>60 yrs</span></div>
+      </div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend class="grp">Assumptions</legend>
+      <div class="fields">
+
+      <div class="field">
+        <div class="field-head">
+          <label for="rate">Rate of return</label>
+          <span class="num"><input id="rate" type="text" inputmode="decimal" data-key="rate" data-kind="pct"><span class="aff suf">%</span></span>
+        </div>
+        <input type="range" id="rate_r" data-for="rate" min="0" max="25" step="0.1" aria-label="Rate of return slider">
+        <div class="ticks"><span>0%</span><span>25%</span></div>
+        <div class="row2">
+          <label><span class="lbl-sm">Compounded</span>
+            <select class="sel" id="compounding" data-key="compounding">
+              <option value="12">Monthly</option>
+              <option value="4">Quarterly</option>
+              <option value="2">Half-yearly</option>
+              <option value="1">Yearly</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">Annual, before fees and tax. Type any value up to 50%.</p>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="fee">Annual fee (MER)</label>
+          <span class="num"><input id="fee" type="text" inputmode="decimal" data-key="fee" data-kind="pct"><span class="aff suf">%</span></span>
+        </div>
+        <input type="range" id="fee_r" data-for="fee" min="0" max="3" step="0.05" aria-label="Annual fee slider">
+        <div class="ticks"><span>0%</span><span>3%</span></div>
+        <p class="hint">Charged on the balance each year, the way a fund MER or platform fee is.</p>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="inflation">Inflation rate</label>
+          <span class="num"><input id="inflation" type="text" inputmode="decimal" data-key="inflation" data-kind="pct"><span class="aff suf">%</span></span>
+        </div>
+        <input type="range" id="inflation_r" data-for="inflation" min="0" max="10" step="0.1" aria-label="Inflation rate slider">
+        <div class="ticks"><span>0%</span><span>10%</span></div>
+      </div>
+
+      <div class="field">
+        <div class="field-head">
+          <label for="tax">Tax on earnings</label>
+          <span class="num"><input id="tax" type="text" inputmode="decimal" data-key="tax" data-kind="pct"><span class="aff suf">%</span></span>
+        </div>
+        <input type="range" id="tax_r" data-for="tax" min="0" max="50" step="0.5" aria-label="Tax on earnings slider">
+        <div class="ticks"><span>0%</span><span>50%</span></div>
+        <p class="hint">Leave at 0% for a tax-sheltered account (super, ISA, RRSP, TFSA, 401(k)).</p>
+      </div>
+
+      <div class="field">
+        <label class="check"><input type="checkbox" id="patterns" data-key="patterns"><span>Use patterns as well as colour in charts</span></label>
+      </div>
+      </div>
+    </fieldset>
+
+    <div class="act-row">
+      <button class="btn" type="button" id="pinBtn" title="Keep the current result on the chart to compare against">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 20 L20 4"/><path d="M9 4h9v9"/></svg>
+        Pin as baseline
+      </button>
+      <button class="btn" type="button" id="resetBtn">Reset</button>
+    </div>
+    <p class="disclaimer">
+      Educational tool only — <strong>not financial advice</strong>, and not a prediction. Returns are
+      assumed to be perfectly steady, which no real market is, and figures ignore transaction costs,
+      contribution caps and the specifics of your tax position. Provided without warranty and used
+      entirely at your own risk — see the <a href="#disclaimer">full disclaimer</a>.
+    </p>
+  </form>
+
+  <!-- ============ RESULTS ============ -->
+  <section class="results" id="results" aria-label="Results">
+
+    <div class="viewbar">
+      <span class="vb-label" id="viewLbl">Show</span>
+      <div class="seg" role="radiogroup" aria-labelledby="viewLbl">
+        <input type="radio" name="basis" id="basis-nom" value="nominal" checked><label for="basis-nom">Actual dollars</label>
+        <input type="radio" name="basis" id="basis-real" value="real"><label for="basis-real">Today's dollars</label>
+      </div>
+      <span class="chip" id="baseChip">Baseline <b id="baseVal">—</b><button type="button" id="clearBase" title="Clear baseline" aria-label="Clear baseline">&times;</button></span>
+      <span class="spacer"></span>
+      <div class="vb-actions">
+      <button class="btn" type="button" id="linkBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>
+        <span id="linkTxt">Copy link</span>
+      </button>
+      <button class="btn" type="button" id="csvBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 21h16"/></svg>
+        CSV
+      </button>
+      <button class="btn" type="button" id="printBtn">Print</button>
+      </div>
+    </div>
+
+    <div class="panel hero">
+      <p class="tile-label" id="heroLabel">Total value</p>
+      <p class="hero-value" id="heroValue">—</p>
+      <p class="hero-note" id="heroNote"></p>
+      <div class="compbar" id="compBar" role="img" aria-label="Composition of the final balance"></div>
+      <div class="comp-cap"><span id="compCapL"></span><span id="compCapR"></span></div>
+    </div>
+
+    <div class="tiles" id="tiles"></div>
+
+    <div class="panel chart-card">
+      <div class="card-head">
+        <div>
+          <h2>Growth over time</h2>
+          <p class="card-sub" id="growthSub">Your money, split into what you put in and what the returns added.</p>
+        </div>
+      </div>
+      <div class="chart-wrap" id="growthWrap">
+        <svg id="growthSvg" role="img" tabindex="0" aria-describedby="growthDesc"></svg>
+        <div class="tip" id="growthTip" role="tooltip" aria-hidden="true"></div>
+      </div>
+      <div class="legend" id="growthLegend"></div>
+      <p class="sr-only" id="growthDesc"></p>
+      <p class="sr-only" id="growthLive" aria-live="polite"></p>
+    </div>
+
+    <div class="panel chart-card">
+      <div class="card-head">
+        <div>
+          <h2>If the return were different</h2>
+          <p class="card-sub" id="sensSub">Same contributions, same years — only the rate of return changes.</p>
+        </div>
+      </div>
+      <div class="chart-wrap" id="sensWrap">
+        <svg id="sensSvg" role="img" tabindex="0" aria-describedby="sensDesc"></svg>
+        <div class="tip" id="sensTip" role="tooltip" aria-hidden="true"></div>
+      </div>
+      <p class="sr-only" id="sensDesc"></p>
+      <p class="sr-only" id="sensLive" aria-live="polite"></p>
+    </div>
+
+    <div class="panel chart-card table-card">
+      <div class="card-head"><div><h2>Year by year</h2><p class="card-sub" id="tableSub"></p></div></div>
+      <div class="table-scroll">
+        <table id="yearTable">
+          <caption class="sr-only">Balance at the end of each year, with contributions, earnings, fees and tax.</caption>
+          <thead><tr id="tableHead"></tr></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<footer>
+  <p>Built as a single self-contained HTML file — no server, no tracking, no data leaves your browser. Every setting lives in the page URL, so a copied link reproduces the exact scenario.</p>
+  <p style="margin-top:6px">Compounding assumptions: contributions are added at the start or end of each period as selected; the fee is charged on the balance; tax is applied to earnings as they accrue. Simple earnings are what the returns would have paid if nothing were reinvested — compound earnings are the returns your returns went on to earn.</p>
+
+  <section class="legal" id="disclaimer" aria-labelledby="disclaimer-h">
+    <h2 id="disclaimer-h">Disclaimer</h2>
+    <p><strong>This calculator is provided for general information and educational purposes only. It is not
+    financial, investment, tax or legal advice.</strong> It takes no account of your objectives, financial
+    situation or needs, and nothing in it is a recommendation to acquire, hold or dispose of any
+    investment or financial product.</p>
+    <p>The results are <strong>hypothetical illustrations</strong> generated solely from the figures you enter. They
+    assume a constant rate of return, which no real investment delivers. Actual returns vary, may be
+    negative, and past performance is no guide to future performance. The calculations ignore
+    transaction costs, brokerage, bid–ask spreads, contribution and concessional caps, product-specific
+    rules, and the particulars of your own tax position. No result should be treated as a projection,
+    forecast or guarantee.</p>
+    <p><strong>The tool is provided “as is”, without warranty of any kind</strong>, express or implied, including
+    without limitation any warranty of accuracy, completeness, reliability, merchantability or fitness
+    for a particular purpose. To the maximum extent permitted by law, the author and any distributor
+    accept <strong>no responsibility or liability whatsoever</strong> for any error, omission, defect or inaccuracy
+    in the calculations, content or output, nor for any loss or damage — direct, indirect,
+    consequential or otherwise — arising from your use of, or reliance on, this tool. You use it
+    entirely at your own risk, and you are responsible for verifying any figure before acting on it.</p>
+    <p>Before making any financial decision, seek advice from a licensed financial adviser, accountant or
+    other qualified professional who can consider your individual circumstances.</p>
+  </section>
+</footer>
+
+<script>
+(function(){
+"use strict";
+
+/* ================================================================
+   1. ENGINE  (pure: no DOM, no globals — also unit-tested standalone)
+   ================================================================ */
+/* --- engine:start --- */
+function clamp(v, lo, hi){ return v < lo ? lo : v > hi ? hi : v; }
+
+/* Amount contributed in month k (1-based), 0 if none is due that month. */
+function contribFor(p, k){
+  if (!p.contrib) return 0;
+  var yearIdx = Math.floor((k - 1) / 12);
+  var factor = p.indexContrib ? Math.pow(1 + p.inflation, yearIdx) : 1;
+  if (p.freq === 12) return p.contrib * factor;
+  var due = p.timing === 'begin' ? ((k - 1) % 12 === 0) : (k % 12 === 0);
+  return due ? p.contrib * factor : 0;
+}
+
+/*
+  Monthly simulation.
+    gross annual factor      A  = (1 + rate/m)^m          (m = compounds per year)
+    after fee, before tax    gm = (A*(1-fee))^(1/12)      per month
+    after tax                fm = 1 + (gm-1)*(1-tax)      per month
+    effective annual return  ra = fm^12 - 1
+  "Simple earnings" accrue linearly on invested capital at ra, i.e. what the
+  returns would have paid had nothing been reinvested. Everything above that is
+  compound earnings — returns earned by earlier returns.
+*/
+function simulate(p){
+  var months = Math.max(1, Math.round(p.years * 12));
+  var A  = Math.pow(1 + p.rate / p.compounding, p.compounding);
+  var gm = Math.pow(A * (1 - p.fee), 1 / 12);
+  var grossM = Math.pow(A, 1 / 12);
+  var fm = 1 + (gm - 1) * (1 - p.tax);
+  var ra = Math.pow(fm, 12) - 1;
+  var infM = Math.pow(1 + p.inflation, 1 / 12);
+
+  var bal = p.initial, invested = p.initial, simple = 0;
+  var fees = 0, taxes = 0, grossAll = 0;
+  var pts = [], years = [];
+  var yStart = bal, yContrib = 0, yGross = 0, yFee = 0, yTax = 0;
+
+  function snap(k){
+    var b1 = Math.min(bal, invested);
+    var head = Math.max(0, bal - invested);
+    var b2 = clamp(simple, 0, head);
+    var b3 = Math.max(0, head - b2);
+    pts.push({
+      t: k / 12, bal: bal, invested: invested,
+      b1: b1, b2: b2, b3: b3,
+      under: Math.max(0, invested - bal),
+      defl: Math.pow(infM, k)
+    });
+  }
+  snap(0);
+
+  for (var k = 1; k <= months; k++){
+    var c = contribFor(p, k);
+    if (c && p.timing === 'begin'){ bal += c; invested += c; yContrib += c; }
+
+    var g = bal * (grossM - 1);              // gross growth
+    var fee = (bal + g) * (1 - Math.pow(1 - p.fee, 1 / 12));
+    var net = g - fee;
+    var tax = net > 0 ? net * p.tax : 0;
+    bal += net - tax;
+    fees += fee; taxes += tax; grossAll += g;
+    yGross += g; yFee += fee; yTax += tax;
+
+    simple += invested * (ra / 12);          // linear, on capital only
+
+    if (c && p.timing === 'end'){ bal += c; invested += c; yContrib += c; }
+
+    snap(k);
+
+    if (k % 12 === 0){
+      years.push({
+        y: k / 12, start: yStart, contrib: yContrib,
+        gross: yGross, fee: yFee, tax: yTax,
+        net: yGross - yFee - yTax, end: bal, invested: invested,
+        defl: Math.pow(1 + p.inflation, k / 12)
+      });
+      yStart = bal; yContrib = 0; yGross = 0; yFee = 0; yTax = 0;
+    }
+  }
+
+  var last = pts[pts.length - 1];
+  return {
+    p: p, pts: pts, years: years, months: months,
+    ra: ra, grossAnnual: A - 1, netAnnualPreTax: A * (1 - p.fee) - 1,
+    total: {
+      bal: bal, invested: invested,
+      simple: last.b2, compound: last.b3,
+      earnings: bal - invested, under: last.under,
+      fees: fees, tax: taxes, gross: grossAll,
+      defl: last.defl
+    }
+  };
+}
+/* --- engine:end --- */
+
+/* ================================================================
+   2. STATE
+   ================================================================ */
+var DEFAULTS = {
+  initial: 10000, contrib: 500, freq: 12, timing: 'begin', indexContrib: false,
+  years: 25, rate: 7, compounding: 12, fee: 0.5, inflation: 2.5, tax: 0,
+  basis: 'nominal', currency: 'AUD', patterns: false
+};
+var LIMITS = {
+  initial: [0, 100000000], contrib: [0, 1000000], years: [1, 60],
+  rate: [0, 50], fee: [0, 5], inflation: [0, 25], tax: [0, 75]
+};
+var SHORT = {
+  initial:'i', contrib:'c', freq:'f', timing:'t', indexContrib:'x', years:'y',
+  rate:'r', compounding:'m', fee:'e', inflation:'n', tax:'q',
+  basis:'b', currency:'u', patterns:'g'
+};
+var state = Object.assign({}, DEFAULTS);
+var baseline = null;   // { sim, label }
+
+function params(s){
+  return {
+    initial: s.initial, contrib: s.contrib, freq: +s.freq, timing: s.timing,
+    indexContrib: !!s.indexContrib, years: s.years,
+    rate: s.rate / 100, compounding: +s.compounding,
+    fee: s.fee / 100, inflation: s.inflation / 100, tax: s.tax / 100
+  };
+}
+
+/* ---- URL + storage ---------------------------------------------- */
+var STORE_KEY = 'igc.v1';
+
+function encodeState(){
+  var out = [];
+  Object.keys(SHORT).forEach(function(k){
+    var v = state[k];
+    if (typeof v === 'boolean') v = v ? 1 : 0;
+    out.push(SHORT[k] + '=' + encodeURIComponent(v));
+  });
+  return out.join('&');
+}
+function applyRaw(obj){
+  var inv = {};
+  Object.keys(SHORT).forEach(function(k){ inv[SHORT[k]] = k; });
+  Object.keys(obj).forEach(function(sk){
+    var key = inv[sk] || (SHORT[sk] ? sk : null);
+    if (!key) return;
+    var raw = obj[sk];
+    if (key === 'timing')   { state.timing = raw === 'end' ? 'end' : 'begin'; return; }
+    if (key === 'basis')    { state.basis = raw === 'real' ? 'real' : 'nominal'; return; }
+    if (key === 'currency') { if (CUR[raw]) state.currency = raw; return; }
+    if (key === 'indexContrib' || key === 'patterns'){ state[key] = (raw === '1' || raw === 'true'); return; }
+    if (key === 'freq')        { state.freq = (+raw === 1) ? 1 : 12; return; }
+    if (key === 'compounding') { state.compounding = [1,2,4,12].indexOf(+raw) >= 0 ? +raw : 12; return; }
+    var n = parseFloat(String(raw).replace(/,/g, ''));
+    if (!isFinite(n)) return;
+    var lim = LIMITS[key];
+    state[key] = lim ? clamp(n, lim[0], lim[1]) : n;
+  });
+  state.years = Math.round(state.years);
+}
+function parseHash(){
+  var h = location.hash.replace(/^#/, '');
+  if (!h) return false;
+  var obj = {}, got = false;
+  h.split('&').forEach(function(kv){
+    var i = kv.indexOf('=');
+    if (i > 0){ obj[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1)); got = true; }
+  });
+  if (got) applyRaw(obj);
+  return got;
+}
+function persist(){
+  var enc = encodeState();
+  try { history.replaceState(null, '', '#' + enc); } catch(e){ location.hash = enc; }
+  try { localStorage.setItem(STORE_KEY, enc); } catch(e){}
+}
+function loadStored(){
+  var s = null;
+  try { s = localStorage.getItem(STORE_KEY); } catch(e){}
+  if (!s) return false;
+  var obj = {};
+  s.split('&').forEach(function(kv){
+    var i = kv.indexOf('=');
+    if (i > 0) obj[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1));
+  });
+  applyRaw(obj);
+  return true;
+}
+
+/* ================================================================
+   3. FORMATTING
+   ================================================================ */
+var CUR = {
+  AUD:{sym:'A$', loc:'en-AU'}, USD:{sym:'$', loc:'en-US'}, CAD:{sym:'C$', loc:'en-CA'},
+  NZD:{sym:'NZ$',loc:'en-NZ'}, GBP:{sym:'£', loc:'en-GB'}, EUR:{sym:'€', loc:'de-DE'},
+  INR:{sym:'₹', loc:'en-IN'},  SGD:{sym:'S$',loc:'en-SG'}, JPY:{sym:'¥', loc:'ja-JP'}
+};
+var nfPlain = null;
+function buildFormatters(){
+  var c = CUR[state.currency] || CUR.USD;
+  /* one representation everywhere: the currency symbol plus locale grouping,
+     so the hero, the tiles, the axes and the table can never disagree. */
+  try { nfPlain = new Intl.NumberFormat(c.loc, { maximumFractionDigits:0 }); } catch(e){ nfPlain = null; }
+}
+function sym(){ return (CUR[state.currency] || CUR.USD).sym; }
+function plain(v){
+  v = Math.round(v || 0);
+  return nfPlain ? nfPlain.format(v) : String(v);
+}
+function money(v){
+  if (!isFinite(v)) return '—';
+  return (v < 0 ? '-' : '') + sym() + plain(Math.abs(v));
+}
+/* Compact currency for axes, caps and tiles: A$1.24M, A$450k, A$9,800 */
+function moneyC(v){
+  if (!isFinite(v)) return '—';
+  var neg = v < 0, a = Math.abs(v), s;
+  if (a >= 1e12)     s = trim(a / 1e12) + 'T';
+  else if (a >= 1e9) s = trim(a / 1e9) + 'B';
+  else if (a >= 1e6) s = trim(a / 1e6) + 'M';
+  else if (a >= 1e4) s = trim(a / 1e3) + 'k';
+  else               s = plain(a);
+  return (neg ? '-' : '') + sym() + s;
+  function trim(n){
+    var d = n < 10 ? 2 : n < 100 ? 1 : 0;
+    return String(parseFloat(n.toFixed(d)));
+  }
+}
+function pct(v, d){ return (Math.round(v * Math.pow(10, d == null ? 2 : d)) / Math.pow(10, d == null ? 2 : d)) + '%'; }
+function yearLabel(t){
+  var whole = Math.round(t * 12) / 12;
+  var y = Math.floor(whole + 1e-9), mo = Math.round((whole - y) * 12);
+  if (mo === 0) return y === 0 ? 'Today' : 'Year ' + y;
+  return 'Year ' + y + ', month ' + mo;
+}
+function esc(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+
+/* ================================================================
+   4. CHART PRIMITIVES
+   ================================================================ */
+function $(s){ return document.querySelector(s); }
+function cssv(n){ return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+var SERIES = [
+  { key:'b1', name:'Amount invested',   v:'--s1', desc:'the money you put in' },
+  { key:'b2', name:'Simple earnings',   v:'--s2', desc:'returns on your capital' },
+  { key:'b3', name:'Compound earnings', v:'--s3', desc:'returns on your returns' }
+];
+
+function niceTicks(max, target){
+  if (!(max > 0) || !isFinite(max)) return [0, 1];
+  var raw = max / Math.max(2, target);
+  var mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  var n = raw / mag;
+  var step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * mag;
+  var count = Math.max(1, Math.ceil(max / step - 1e-9));
+  var out = [];
+  for (var i = 0; i <= count; i++) out.push(i * step);
+  return out;
+}
+function xTicks(years){
+  var cands = [1, 2, 5, 10, 15, 20, 25], step = 25;
+  for (var i = 0; i < cands.length; i++){ if (years / cands[i] <= 8){ step = cands[i]; break; } }
+  var out = [];
+  for (var v = 0; v <= years + 1e-9; v += step) out.push(Math.round(v));
+  var last = out[out.length - 1];
+  if (years - last > step * 0.4) out.push(years);
+  else if (last !== years) out[out.length - 1] = years;
+  return out;
+}
+function sampleIdx(n, max){
+  var step = Math.max(1, Math.ceil(n / max)), out = [];
+  for (var i = 0; i < n; i += step) out.push(i);
+  if (out[out.length - 1] !== n - 1) out.push(n - 1);
+  return out;
+}
+function val(pt, key){ return state.basis === 'real' ? pt[key] / pt.defl : pt[key]; }
+function r1(n){ return Math.round(n * 10) / 10; }
+
+function patternDefs(cols){
+  var d = '';
+  [1, 2].forEach(function(i){
+    var c = cols[SERIES[i].v], rot = i === 1 ? 45 : 135;
+    d += '<pattern id="pat' + i + '" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(' + rot + ')">' +
+         '<rect width="7" height="7" fill="' + c + '" opacity="0.3"></rect>' +
+         '<line x1="0" y1="0" x2="0" y2="7" stroke="' + c + '" stroke-width="2.6"></line></pattern>';
+  });
+  d += '<pattern id="patUnder" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(135)">' +
+       '<line x1="0" y1="0" x2="0" y2="6" stroke="' + cols['--danger'] + '" stroke-width="1.6" opacity="0.85"></line></pattern>';
+  return '<defs>' + d + '</defs>';
+}
+function bandFill(i, cols, patterns){
+  if (patterns && i > 0) return 'url(#pat' + i + ')';
+  return cols[SERIES[i].v];
+}
+
+/* ================================================================
+   5. GROWTH CHART  (stacked area + crosshair)
+   ================================================================ */
+var G = null;
+
+function renderGrowth(sim){
+  var wrap = $('#growthWrap'), svg = $('#growthSvg');
+  var W = Math.max(300, Math.round(wrap.clientWidth - 24));
+  var narrow = W < 580;
+  var H = W < 520 ? 252 : 330;
+  var L = narrow ? 50 : 62, R = narrow ? 16 : 112, T = 16, B = 42;
+  var plotW = W - L - R, plotH = H - T - B;
+  var cols = {};
+  ['--s1','--s2','--s3','--card','--grid','--ink','--ink-2','--ink-3','--danger','--hair'].forEach(function(k){ cols[k] = cssv(k); });
+
+  var pts = sampleIdx(sim.pts.length, 420).map(function(i){ return sim.pts[i]; });
+  var years = sim.p.years;
+  var dmax = 0;
+  var T1 = [], T2 = [], T3 = [], INV = [];
+  pts.forEach(function(pt){
+    var b1 = val(pt, 'b1'), b2 = val(pt, 'b2'), b3 = val(pt, 'b3'), inv = val(pt, 'invested');
+    T1.push(b1); T2.push(b1 + b2); T3.push(b1 + b2 + b3); INV.push(inv);
+    if (b1 + b2 + b3 > dmax) dmax = b1 + b2 + b3;
+    if (inv > dmax) dmax = inv;
+  });
+  if (dmax <= 0) dmax = 1000;   /* nothing invested: still draw a sane axis */
+
+  /* baseline series mapped onto this time axis */
+  var BL = null, blLast = null;
+  if (baseline){
+    BL = pts.map(function(pt){ return baselineAt(pt.t); });
+    BL.forEach(function(v){ if (v != null && v > dmax) dmax = v; });
+    for (var bi = BL.length - 1; bi >= 0; bi--){ if (BL[bi] != null){ blLast = { i: bi, v: BL[bi] }; break; } }
+  }
+
+  var ticks = niceTicks(dmax, W < 520 ? 4 : 5);
+  var domain = ticks[ticks.length - 1] || 1;
+  var X = function(i){ return L + (pts[i].t / years) * plotW; };
+  var Y = function(v){ return T + plotH - (clamp(v, 0, domain) / domain) * plotH; };
+
+  function area(hi, lo){
+    var d = '', i;
+    for (i = 0; i < pts.length; i++) d += (i ? 'L' : 'M') + r1(X(i)) + ' ' + r1(Y(hi[i]));
+    for (i = pts.length - 1; i >= 0; i--) d += 'L' + r1(X(i)) + ' ' + r1(Y(lo ? lo[i] : 0));
+    return d + 'Z';
+  }
+  function line(arr){
+    var d = '', started = false;
+    for (var i = 0; i < arr.length; i++){
+      if (arr[i] == null) continue;
+      d += (started ? 'L' : 'M') + r1(X(i)) + ' ' + r1(Y(arr[i]));
+      started = true;
+    }
+    return d;
+  }
+
+  var s = [];
+  s.push(patternDefs(cols));
+
+  /* gridlines + y labels (hairline, solid, recessive) */
+  ticks.forEach(function(tv){
+    var y = r1(Y(tv));
+    s.push('<line x1="' + L + '" y1="' + y + '" x2="' + (L + plotW) + '" y2="' + y +
+           '" stroke="' + cols['--grid'] + '" stroke-width="1"></line>');
+    s.push('<text x="' + (L - 9) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10.5" fill="' + cols['--ink-3'] +
+           '" style="font-variant-numeric:tabular-nums">' + esc(tv === 0 ? '0' : moneyC(tv)) + '</text>');
+  });
+
+  /* x labels */
+  xTicks(years).forEach(function(yr){
+    var x = r1(L + (yr / years) * plotW);
+    s.push('<text x="' + x + '" y="' + (T + plotH + 18) + '" text-anchor="middle" font-size="10.5" fill="' + cols['--ink-3'] +
+           '" style="font-variant-numeric:tabular-nums">' + (yr === 0 ? 'now' : yr) + '</text>');
+  });
+  s.push('<text x="' + (L + plotW / 2) + '" y="' + (T + plotH + 35) + '" text-anchor="middle" font-size="10" fill="' + cols['--ink-3'] + '">years</text>');
+
+  /* shortfall (balance below what you put in) */
+  if (sim.total.under > 0.5 || pts.some(function(pt){ return pt.under > 0.5; })){
+    var hi = INV.map(function(v, i){ return Math.max(v, T3[i]); });
+    s.push('<path d="' + area(hi, T3) + '" fill="url(#patUnder)" opacity="0.9"></path>');
+    s.push('<path d="' + line(INV) + '" fill="none" stroke="' + cols['--danger'] +
+           '" stroke-width="1.5" stroke-dasharray="2 3" opacity="0.9"></path>');
+  }
+
+  /* stacked bands, bottom to top */
+  s.push('<path d="' + area(T1, null) + '" fill="' + bandFill(0, cols, state.patterns) + '" fill-opacity="' + (state.patterns ? 1 : 0.55) + '"></path>');
+  s.push('<path d="' + area(T2, T1) + '" fill="' + bandFill(1, cols, state.patterns) + '" fill-opacity="' + (state.patterns ? 1 : 0.55) + '"></path>');
+  s.push('<path d="' + area(T3, T2) + '" fill="' + bandFill(2, cols, state.patterns) + '" fill-opacity="' + (state.patterns ? 1 : 0.55) + '"></path>');
+
+  /* 2px surface gaps do the separating — never a border around a mark */
+  s.push('<path d="' + line(T1) + '" fill="none" stroke="' + cols['--card'] + '" stroke-width="2"></path>');
+  s.push('<path d="' + line(T2) + '" fill="none" stroke="' + cols['--card'] + '" stroke-width="2"></path>');
+  /* total line */
+  s.push('<path d="' + line(T3) + '" fill="none" stroke="' + cols['--s3'] + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></path>');
+
+  /* baseline overlay */
+  if (BL){
+    s.push('<path d="' + line(BL) + '" fill="none" stroke="' + cols['--ink-3'] +
+           '" stroke-width="2" stroke-dasharray="6 4" stroke-linecap="round"></path>');
+  }
+
+  /* selective direct labels in the right gutter, top-down with collision skip */
+  if (!narrow){
+    var lx = L + plotW + 9, placed = [];
+    function put(y, txt, fill, weight, size){
+      y = clamp(y, T + 8, T + plotH);
+      for (var i = 0; i < placed.length; i++) if (Math.abs(placed[i] - y) < 13) return;
+      placed.push(y);
+      s.push('<text x="' + lx + '" y="' + r1(y) + '" font-size="' + (size || 10.5) + '" font-weight="' + (weight || 400) +
+             '" fill="' + fill + '">' + esc(txt) + '</text>');
+    }
+    var n = pts.length - 1;
+    put(Y(T3[n]) - 6, moneyC(T3[n]), cols['--ink'], 700, 12);
+    var mids = [
+      { y: (Y(T2[n]) + Y(T3[n])) / 2, h: Y(T2[n]) - Y(T3[n]), name: SERIES[2].name },
+      { y: (Y(T1[n]) + Y(T2[n])) / 2, h: Y(T1[n]) - Y(T2[n]), name: SERIES[1].name },
+      { y: (Y(0)     + Y(T1[n])) / 2, h: Y(0)     - Y(T1[n]), name: SERIES[0].name }
+    ];
+    mids.forEach(function(m){ if (m.h >= 17) put(m.y + 3, m.name, cols['--ink-3']); });
+    if (blLast) put(Y(blLast.v) + 3, 'Baseline', cols['--ink-3']);
+  }
+
+  s.push('<g id="gHover"></g>');
+  s.push('<rect x="' + L + '" y="' + T + '" width="' + plotW + '" height="' + plotH + '" fill="transparent" pointer-events="all" id="gHit"></rect>');
+
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', W);
+  svg.setAttribute('height', H);
+  svg.setAttribute('aria-label', 'Growth over time — stacked area chart. Use the left and right arrow keys to step through it.');
+  svg.innerHTML = s.join('');
+
+  G = { svg:svg, wrap:wrap, pts:pts, T1:T1, T2:T2, T3:T3, INV:INV, BL:BL,
+        L:L, T:T, plotW:plotW, plotH:plotH, W:W, H:H, domain:domain, years:years, cols:cols, i:-1 };
+
+  var d = sim.total;
+  $('#growthDesc').textContent =
+    'Stacked area chart. Over ' + years + ' years the balance grows to ' + money(basisTotal(sim)) +
+    ', made up of ' + money(d.invested) + ' invested, ' + money(d.simple) + ' simple earnings and ' +
+    money(d.compound) + ' compound earnings. The year-by-year table below carries every value.';
+}
+
+function baselineAt(t){
+  if (!baseline) return null;
+  var bp = baseline.sim.pts, n = bp.length;
+  var k = t * 12;
+  if (k > n - 1) return null;
+  var lo = Math.floor(k), hi = Math.min(n - 1, lo + 1), f = k - lo;
+  var a = val(bp[lo], 'bal'), b = val(bp[hi], 'bal');
+  return a + (b - a) * f;
+}
+
+function growthAt(i){
+  if (!G || !G.pts.length) return;
+  i = clamp(i | 0, 0, G.pts.length - 1);
+  G.i = i;
+  var pt = G.pts[i], x = G.L + (pt.t / G.years) * G.plotW;
+  var Y = function(v){ return G.T + G.plotH - (clamp(v, 0, G.domain) / G.domain) * G.plotH; };
+  var c = G.cols, h = [];
+  h.push('<line x1="' + r1(x) + '" y1="' + G.T + '" x2="' + r1(x) + '" y2="' + (G.T + G.plotH) +
+         '" stroke="' + c['--ink-3'] + '" stroke-width="1" opacity="0.65"></line>');
+  [[G.T1[i], '--s1'], [G.T2[i], '--s2'], [G.T3[i], '--s3']].forEach(function(p){
+    h.push('<circle cx="' + r1(x) + '" cy="' + r1(Y(p[0])) + '" r="4.5" fill="' + c[p[1]] +
+           '" stroke="' + c['--card'] + '" stroke-width="2"></circle>');
+  });
+  if (G.BL && G.BL[i] != null){
+    h.push('<circle cx="' + r1(x) + '" cy="' + r1(Y(G.BL[i])) + '" r="4" fill="' + c['--ink-3'] +
+           '" stroke="' + c['--card'] + '" stroke-width="2"></circle>');
+  }
+  var layer = G.svg.querySelector('#gHover');
+  if (layer) layer.innerHTML = h.join('');
+
+  /* tooltip — values lead, labels follow; line keys, not boxes */
+  var tip = $('#growthTip');
+  var rows = [
+    { k: c['--s3'], n: SERIES[2].name, v: val(pt, 'b3') },
+    { k: c['--s2'], n: SERIES[1].name, v: val(pt, 'b2') },
+    { k: c['--s1'], n: SERIES[0].name, v: val(pt, 'b1') }
+  ];
+  tip.textContent = '';
+  var head = document.createElement('div');
+  head.className = 'th';
+  head.textContent = yearLabel(pt.t) + (state.basis === 'real' ? " · today's dollars" : '');
+  tip.appendChild(head);
+  var tot = document.createElement('div');
+  tot.className = 'tr tot';
+  tot.appendChild(txt('span', 'tn', 'Total value'));
+  tot.appendChild(txt('span', 'tv', money(val(pt, 'bal'))));
+  tip.appendChild(tot);
+  rows.forEach(function(r){
+    var el = document.createElement('div');
+    el.className = 'tr';
+    var key = document.createElement('span');
+    key.className = 'tk'; key.style.background = r.k;
+    el.appendChild(key);
+    el.appendChild(txt('span', 'tn', r.n));
+    el.appendChild(txt('span', 'tv', money(r.v)));
+    tip.appendChild(el);
+  });
+  if (pt.under > 0.5){
+    var u = document.createElement('div');
+    u.className = 'tr';
+    u.appendChild(txt('span', 'tn', 'Below what you put in'));
+    u.appendChild(txt('span', 'tv', '-' + money(pt.under)));
+    tip.appendChild(u);
+  }
+  if (G.BL && G.BL[i] != null){
+    var bl = document.createElement('div');
+    bl.className = 'tr tot';
+    bl.appendChild(txt('span', 'tn', 'Baseline'));
+    bl.appendChild(txt('span', 'tv', money(G.BL[i])));
+    tip.appendChild(bl);
+  }
+  placeTip(tip, G, x, Y(G.T3[i]));
+  tip.classList.add('on');
+  tip.setAttribute('aria-hidden', 'false');
+  $('#growthLive').textContent = yearLabel(pt.t) + ': total ' + money(val(pt, 'bal')) +
+    ', invested ' + money(val(pt, 'b1')) + ', simple earnings ' + money(val(pt, 'b2')) +
+    ', compound earnings ' + money(val(pt, 'b3'));
+}
+function txt(tag, cls, s){
+  var e = document.createElement(tag);
+  e.className = cls; e.textContent = s;
+  return e;
+}
+function placeTip(tip, ctx, sx, sy){
+  var sr = ctx.svg.getBoundingClientRect(), wr = ctx.wrap.getBoundingClientRect();
+  var kx = sr.width / ctx.W, ky = sr.height / ctx.H;
+  var px = (sr.left - wr.left) + sx * kx;
+  var py = (sr.top - wr.top) + sy * ky;
+  var tw = tip.offsetWidth || 190, th = tip.offsetHeight || 110;
+  var left = px + 16;
+  if (left + tw > wr.width - 6) left = px - tw - 16;
+  tip.style.left = Math.max(6, left) + 'px';
+  tip.style.top = clamp(py - th / 2, 6, Math.max(6, wr.height - th - 6)) + 'px';
+}
+function hideTip(id){
+  var t = $(id);
+  t.classList.remove('on');
+  t.setAttribute('aria-hidden', 'true');
+}
+
+/* ================================================================
+   6. SENSITIVITY CHART  (columns, emphasis on your rate)
+   ================================================================ */
+var S = null;
+function basisTotal(sim){ return state.basis === 'real' ? sim.total.bal / sim.total.defl : sim.total.bal; }
+
+function barPath(x, y, w, h, rad){
+  rad = Math.min(rad, w / 2, Math.max(0, h));
+  return 'M' + r1(x) + ' ' + r1(y + h) + 'V' + r1(y + rad) +
+         'Q' + r1(x) + ' ' + r1(y) + ' ' + r1(x + rad) + ' ' + r1(y) +
+         'H' + r1(x + w - rad) + 'Q' + r1(x + w) + ' ' + r1(y) + ' ' + r1(x + w) + ' ' + r1(y + rad) +
+         'V' + r1(y + h) + 'Z';
+}
+
+function renderSens(sim){
+  var wrap = $('#sensWrap'), svg = $('#sensSvg');
+  var W = Math.max(300, Math.round(wrap.clientWidth - 24));
+  var narrow = W < 580;
+  var H = W < 520 ? 232 : 268;
+  var L = narrow ? 50 : 62, R = 16, T = 28, B = 46;
+  var plotW = W - L - R, plotH = H - T - B;
+  var cols = {};
+  ['--accent','--muted-bar','--grid','--ink','--ink-2','--ink-3','--card'].forEach(function(k){ cols[k] = cssv(k); });
+
+  var base = state.rate, offs = [-3, -1.5, 0, 1.5, 3], seen = {}, rates = [];
+  offs.forEach(function(o){
+    var r = Math.round(clamp(base + o, 0, 50) * 10) / 10;
+    if (!seen[r]){ seen[r] = 1; rates.push(r); }
+  });
+  rates.sort(function(a, b){ return a - b; });
+
+  var cur = basisTotal(sim), dmax = 0;
+  var bars = rates.map(function(r){
+    var p = params(state); p.rate = r / 100;
+    var sm = (Math.abs(r - base) < 1e-9) ? sim : simulate(p);
+    var v = basisTotal(sm);
+    if (v > dmax) dmax = v;
+    return { rate: r, v: v, isCur: Math.abs(r - base) < 1e-9, delta: v - cur };
+  });
+  if (dmax <= 0) dmax = 1000;
+
+  var ticks = niceTicks(dmax, W < 520 ? 3 : 4);
+  var domain = ticks[ticks.length - 1] || 1;
+  var Y = function(v){ return T + plotH - (clamp(v, 0, domain) / domain) * plotH; };
+  var band = plotW / bars.length;
+  var bw = Math.min(24, band * 0.5);
+
+  var s = [];
+  ticks.forEach(function(tv){
+    var y = r1(Y(tv));
+    s.push('<line x1="' + L + '" y1="' + y + '" x2="' + (L + plotW) + '" y2="' + y +
+           '" stroke="' + cols['--grid'] + '" stroke-width="1"></line>');
+    s.push('<text x="' + (L - 9) + '" y="' + (y + 4) + '" text-anchor="end" font-size="10.5" fill="' + cols['--ink-3'] +
+           '" style="font-variant-numeric:tabular-nums">' + esc(tv === 0 ? '0' : moneyC(tv)) + '</text>');
+  });
+
+  bars.forEach(function(b, k){
+    var cx = L + band * (k + 0.5);
+    var x = cx - bw / 2, y = Y(b.v), h = T + plotH - y;
+    s.push('<path d="' + barPath(x, y, bw, h, 4) + '" fill="' + (b.isCur ? cols['--accent'] : cols['--muted-bar']) +
+           '" opacity="' + (b.isCur ? 1 : 0.85) + '"></path>');
+    s.push('<text x="' + r1(cx) + '" y="' + r1(y - 9) + '" text-anchor="middle" font-size="11" font-weight="' +
+           (b.isCur ? 700 : 500) + '" fill="' + (b.isCur ? cols['--ink'] : cols['--ink-2']) + '">' + esc(moneyC(b.v)) + '</text>');
+    s.push('<text x="' + r1(cx) + '" y="' + (T + plotH + 19) + '" text-anchor="middle" font-size="11" font-weight="' +
+           (b.isCur ? 700 : 400) + '" fill="' + (b.isCur ? cols['--ink'] : cols['--ink-3']) +
+           '" style="font-variant-numeric:tabular-nums">' + esc(b.rate + '%') + '</text>');
+    if (b.isCur){
+      s.push('<text x="' + r1(cx) + '" y="' + (T + plotH + 33) + '" text-anchor="middle" font-size="10" fill="' +
+             cols['--accent'] + '" font-weight="700">your rate</text>');
+    }
+    s.push('<rect x="' + r1(L + band * k) + '" y="' + T + '" width="' + r1(band) + '" height="' + plotH +
+           '" fill="transparent" pointer-events="all" class="sHit" data-i="' + k + '"></rect>');
+  });
+  s.push('<line x1="' + L + '" y1="' + (T + plotH) + '" x2="' + (L + plotW) + '" y2="' + (T + plotH) +
+         '" stroke="' + cols['--grid'] + '" stroke-width="1"></line>');
+
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.setAttribute('aria-label', 'Final balance at five different rates of return. Use the left and right arrow keys to step through it.');
+  svg.innerHTML = s.join('');
+
+  S = { svg:svg, wrap:wrap, bars:bars, L:L, T:T, plotW:plotW, plotH:plotH, W:W, H:H,
+        band:band, domain:domain, cols:cols, i:-1 };
+
+  $('#sensDesc').textContent = 'Column chart of the final balance at ' +
+    bars.map(function(b){ return b.rate + '% (' + money(b.v) + ')'; }).join(', ') + '.';
+  $('#sensSub').textContent = 'Same contributions over the same ' + sim.p.years +
+    ' years — only the rate of return changes. Your ' + state.rate + '% is highlighted.';
+}
+
+function sensAt(k){
+  if (!S) return;
+  k = clamp(k | 0, 0, S.bars.length - 1);
+  S.i = k;
+  var b = S.bars[k];
+  var Y = function(v){ return S.T + S.plotH - (clamp(v, 0, S.domain) / S.domain) * S.plotH; };
+  var tip = $('#sensTip');
+  tip.textContent = '';
+  tip.appendChild(txt('div', 'th', 'Rate of return ' + b.rate + '%'));
+  var row = document.createElement('div');
+  row.className = 'tr tot';
+  row.appendChild(txt('span', 'tn', 'Total value'));
+  row.appendChild(txt('span', 'tv', money(b.v)));
+  tip.appendChild(row);
+  var d = document.createElement('div');
+  d.className = 'tr';
+  d.appendChild(txt('span', 'tn', b.isCur ? 'Your current scenario' : 'vs your rate'));
+  d.appendChild(txt('span', 'tv', b.isCur ? '—' : (b.delta >= 0 ? '+' : '-') + money(Math.abs(b.delta))));
+  tip.appendChild(d);
+  placeTip(tip, S, S.L + S.band * (k + 0.5), Y(b.v));
+  tip.classList.add('on');
+  tip.setAttribute('aria-hidden', 'false');
+  $('#sensLive').textContent = 'Rate ' + b.rate + '%: total ' + money(b.v) +
+    (b.isCur ? ' (your rate)' : ', ' + (b.delta >= 0 ? 'up ' : 'down ') + money(Math.abs(b.delta)) + ' on your rate');
+}
+
+/* ================================================================
+   7. HERO, TILES, LEGEND, TABLE
+   ================================================================ */
+function inkOn(hex){
+  var h = String(hex).replace('#', '');
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  if (h.length < 6) return '#ffffff';
+  var f = function(c){ c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  var lum = 0.2126 * f(parseInt(h.slice(0, 2), 16)) + 0.7152 * f(parseInt(h.slice(2, 4), 16)) + 0.0722 * f(parseInt(h.slice(4, 6), 16));
+  return lum > 0.42 ? '#14181c' : '#ffffff';
+}
+
+function renderSummary(sim){
+  var t = sim.total, real = state.basis === 'real', k = real ? t.defl : 1;
+  var total = t.bal / k, invested = t.invested / k, simple = t.simple / k, compound = t.compound / k;
+  var earnings = t.earnings / k, feesTax = (t.fees + t.tax) / k;
+
+  $('#heroLabel').textContent = 'Total value after ' + sim.p.years + (sim.p.years === 1 ? ' year' : ' years') +
+    (real ? ", in today's dollars" : '');
+  $('#heroValue').textContent = money(total);
+
+  var mult = invested > 0 ? total / invested : 0;
+  var note = [];
+  note.push('You put in <b>' + esc(money(invested)) + '</b>');
+  note.push(earnings >= 0
+    ? 'the returns added <b>' + esc(money(earnings)) + '</b>'
+    : 'fees and tax cost you <b>' + esc(money(-earnings)) + '</b> more than the returns paid');
+  if (mult > 0) note.push('<b>' + (Math.round(mult * 100) / 100) + '&times;</b> what you contributed');
+  $('#heroNote').innerHTML = note.join(' &middot; ');
+
+  /* composition bar — direct-labelled where the label fits, 2px surface gaps */
+  var barW = Math.max(120, $('#compBar').clientWidth || 480);
+  var segs = [];
+  if (t.under > 0.5){
+    segs.push({ cls:'s1', v: t.bal, name: SERIES[0].name, css:'--s1' });
+    segs.push({ cls:'under', v: t.under, name:'Below what you put in', css:'--danger' });
+  } else {
+    segs.push({ cls:'s1', v: t.invested, name: SERIES[0].name, css:'--s1' });
+    segs.push({ cls:'s2', v: t.simple,   name: SERIES[1].name, css:'--s2', pat:45 });
+    segs.push({ cls:'s3', v: t.compound, name: SERIES[2].name, css:'--s3', pat:135 });
+  }
+  var sum = segs.reduce(function(a, s){ return a + Math.max(0, s.v); }, 0) || 1;
+  /* a clipped label is worse than no label, and a bar where only one segment
+     is named reads as an accident — so decide once, for all of them */
+  var namesFit = segs.every(function(sg){
+    var w = (Math.max(0, sg.v) / sum) * barW;
+    return w > (sg.name.length + 5) * 6.5 + 22;
+  });
+  var bar = $('#compBar');
+  bar.textContent = '';
+  segs.forEach(function(sg){
+    var share = Math.max(0, sg.v) / sum;
+    var el = document.createElement('div');
+    el.className = 'compseg ' + sg.cls;
+    el.style.flex = share + ' 1 0';
+    if (state.patterns && sg.pat){
+      el.style.background = 'repeating-linear-gradient(' + sg.pat + 'deg,' + cssv(sg.css) +
+        ' 0 3px,transparent 3px 7px),' + cssv(sg.css) + '4d';
+    }
+    el.title = sg.name + ' — ' + money(sg.v / k) + ' (' + Math.round(share * 100) + '%)';
+    /* measured above: every segment carries its name, or none does */
+    var px = share * barW, pctTxt = Math.round(share * 100) + '%';
+    var label = namesFit ? sg.name + '  ' + pctTxt : pctTxt;
+    if (px > label.length * 6.5 + 16){
+      el.textContent = label;
+      el.style.color = (sg.cls === 'under' || (state.patterns && sg.pat)) ? cssv('--ink') : inkOn(cssv(sg.css));
+    }
+    bar.appendChild(el);
+  });
+  bar.setAttribute('aria-label', 'Final balance is ' + segs.map(function(sg){
+    return Math.round(Math.max(0, sg.v) / sum * 100) + '% ' + sg.name;
+  }).join(', '));
+  $('#compCapL').textContent = 'Where the ' + money(total) + ' comes from';
+  $('#compCapR').textContent = money(invested) + ' in → ' + money(total) + ' out';
+
+  /* tiles */
+  var otherLabel = real ? 'In actual (future) dollars' : "In today's dollars";
+  var otherVal = real ? t.bal : t.bal / t.defl;
+  var tiles = [
+    { k:'Amount invested',   dot:'s1', v: money(invested), m: sim.p.contrib ? contribNote(sim) : 'One-off investment' },
+    { k:'Simple earnings',   dot:'s2', v: money(simple),   m:'Return on the money you put in' },
+    { k:'Compound earnings', dot:'s3', v: money(compound), m:'Return on your returns' },
+    { k:'Fees + tax paid',   dot:'',   v: money(feesTax),  m: fmtPct(state.fee) + ' fee, ' + fmtPct(state.tax) + ' tax on earnings' },
+    { k:'Return after fees + tax', dot:'', v: fmtPct(Math.round(sim.ra * 10000) / 100), m: fmtPct(state.rate) + ' gross, compounded ' + compoundWord(), neg: sim.ra < 0 },
+    { k: otherLabel,         dot:'',   v: money(otherVal), m: fmtPct(state.inflation) + ' inflation for ' + sim.p.years + ' yrs' }
+  ];
+  var host = $('#tiles');
+  host.textContent = '';
+  tiles.forEach(function(ti){
+    var el = document.createElement('div');
+    el.className = 'panel tile';
+    var kk = document.createElement('div');
+    kk.className = 'k';
+    if (ti.dot){ var dd = document.createElement('span'); dd.className = 'dot ' + ti.dot; kk.appendChild(dd); }
+    kk.appendChild(document.createTextNode(ti.k));
+    el.appendChild(kk);
+    el.appendChild(txt('div', 'v' + (ti.neg ? ' neg' : ''), ti.v));
+    el.appendChild(txt('div', 'm', ti.m));
+    host.appendChild(el);
+  });
+
+  /* legend — always present for >= 2 series, with the values beside it */
+  var lg = $('#growthLegend');
+  lg.textContent = '';
+  SERIES.forEach(function(sr, i){
+    var v = [invested, simple, compound][i];
+    var el = document.createElement('span');
+    el.className = 'lg';
+    var sw = document.createElement('span');
+    sw.className = 'sw';
+    sw.style.background = state.patterns && i > 0
+      ? 'repeating-linear-gradient(' + (i === 1 ? 45 : 135) + 'deg,' + cssv(sr.v) + ' 0 2px,transparent 2px 5px),' + cssv(sr.v) + '55'
+      : cssv(sr.v);
+    el.appendChild(sw);
+    el.appendChild(document.createTextNode(sr.name));
+    el.appendChild(txt('span', 'val', money(v)));
+    lg.appendChild(el);
+  });
+  if (t.under > 0.5){
+    var u = document.createElement('span');
+    u.className = 'lg';
+    var us = document.createElement('span');
+    us.className = 'sw';
+    us.style.background = 'repeating-linear-gradient(135deg,' + cssv('--danger') + ' 0 2px,transparent 2px 5px)';
+    u.appendChild(us);
+    u.appendChild(document.createTextNode('Below what you put in'));
+    u.appendChild(txt('span', 'val', money(t.under / k)));
+    lg.appendChild(u);
+  }
+  if (baseline){
+    var b = document.createElement('span');
+    b.className = 'lg';
+    var bs = document.createElement('span');
+    bs.className = 'swl';
+    bs.style.background = 'transparent';
+    bs.style.borderTop = '2px dashed ' + cssv('--ink-3');
+    b.appendChild(bs);
+    b.appendChild(document.createTextNode('Baseline (' + baseline.label + ')'));
+    b.appendChild(txt('span', 'val', money(state.basis === 'real'
+      ? baseline.sim.total.bal / baseline.sim.total.defl : baseline.sim.total.bal)));
+    lg.appendChild(b);
+  }
+  $('#growthSub').textContent = real
+    ? "Every figure discounted by inflation, so it is comparable with money today."
+    : 'The dollars you would actually see in the account.';
+}
+function fmtPct(v){ return (Math.round(v * 100) / 100) + '%'; }
+function compoundWord(){
+  return { 12:'monthly', 4:'quarterly', 2:'half-yearly', 1:'yearly' }[+state.compounding] || 'monthly';
+}
+function contribNote(sim){
+  var per = +state.freq === 12 ? 'month' : 'year';
+  return money(state.contrib) + ' every ' + per + (state.indexContrib ? ', rising with inflation' : '') +
+         ' from ' + money(state.initial);
+}
+
+var COLS = ['Year', 'Contributions', 'Total invested', 'Earnings', 'Fees + tax', 'Balance', ''];
+function renderTable(sim){
+  var real = state.basis === 'real';
+  COLS[6] = real ? 'In actual $' : "In today's $";
+  var head = $('#tableHead');
+  head.textContent = '';
+  COLS.forEach(function(c, i){
+    var th = document.createElement('th');
+    th.textContent = c;
+    th.setAttribute('scope', 'col');
+    head.appendChild(th);
+  });
+  var rows = sim.years.map(function(y){
+    var k = real ? y.defl : 1;
+    return [
+      'Year ' + y.y,
+      money(y.contrib / k),
+      money(y.invested / k),
+      money(y.net / k),
+      money((y.fee + y.tax) / k),
+      money(y.end / k),
+      money(real ? y.end : y.end / y.defl)
+    ];
+  });
+  var body = $('#tableBody');
+  body.textContent = '';
+  rows.forEach(function(r){
+    var tr = document.createElement('tr');
+    r.forEach(function(c, i){
+      var td = document.createElement('td');
+      td.textContent = c;
+      if (i === 5) td.className = 'em';
+      tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+  var t = sim.total, kk = real ? t.defl : 1;
+  var totals = ['All ' + sim.p.years + ' years', money((t.invested - sim.p.initial) / kk), money(t.invested / kk),
+                money(t.earnings / kk), money((t.fees + t.tax) / kk), money(t.bal / kk),
+                money(real ? t.bal : t.bal / t.defl)];
+  var old = $('#yearTable').querySelector('tfoot');
+  if (old) old.parentNode.removeChild(old);
+  var tf = document.createElement('tfoot');
+  var tr2 = document.createElement('tr');
+  totals.forEach(function(c){ var td = document.createElement('td'); td.textContent = c; tr2.appendChild(td); });
+  tf.appendChild(tr2);
+  $('#yearTable').appendChild(tf);
+  $('#tableSub').textContent = 'End of each year' + (real ? ", in today's dollars" : '') +
+    '. Contributions exclude the ' + money(sim.p.initial) + ' you started with.';
+}
+
+/* ================================================================
+   8. EXPORT
+   ================================================================ */
+function csvCell(v){
+  var s = String(v == null ? '' : v);
+  return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function buildCSV(sim){
+  var real = state.basis === 'real';
+  var L = [];
+  L.push(['Investment growth calculator']);
+  L.push(['Generated', new Date().toISOString().slice(0, 10)]);
+  L.push(['Currency', state.currency]);
+  L.push(['Figures shown in', real ? "today's dollars (inflation-adjusted)" : 'actual (nominal) dollars']);
+  L.push(['Disclaimer', 'General information and education only - not financial, investment, tax or legal advice. ' +
+    'A hypothetical illustration assuming a constant rate of return; actual returns vary and may be negative. ' +
+    'Provided "as is" with no warranty of any kind; no responsibility or liability is accepted for any error, ' +
+    'omission, or loss arising from reliance on these figures. Verify before acting and seek advice from a ' +
+    'licensed financial professional.']);
+  L.push([]);
+  L.push(['Initial investment', sim.p.initial]);
+  L.push(['Contribution', sim.p.contrib, +state.freq === 12 ? 'per month' : 'per year', sim.p.timing === 'begin' ? 'start of period' : 'end of period']);
+  L.push(['Contributions rise with inflation', sim.p.indexContrib ? 'yes' : 'no']);
+  L.push(['Years', sim.p.years]);
+  L.push(['Rate of return (% p.a.)', state.rate, 'compounded ' + compoundWord()]);
+  L.push(['Annual fee (%)', state.fee]);
+  L.push(['Tax on earnings (%)', state.tax]);
+  L.push(['Inflation (%)', state.inflation]);
+  L.push(['Return after fees and tax (% p.a.)', Math.round(sim.ra * 10000) / 100]);
+  L.push([]);
+  L.push(['Total value', Math.round(basisTotal(sim))]);
+  L.push(['Amount invested', Math.round(sim.total.invested / (real ? sim.total.defl : 1))]);
+  L.push(['Simple earnings', Math.round(sim.total.simple / (real ? sim.total.defl : 1))]);
+  L.push(['Compound earnings', Math.round(sim.total.compound / (real ? sim.total.defl : 1))]);
+  L.push(['Fees and tax paid', Math.round((sim.total.fees + sim.total.tax) / (real ? sim.total.defl : 1))]);
+  L.push([]);
+  L.push(['Year', 'Contributions', 'Total invested', 'Earnings after fees and tax', 'Fees and tax', 'Balance', real ? 'Balance (actual $)' : "Balance (today's $)"]);
+  sim.years.forEach(function(y){
+    var k = real ? y.defl : 1;
+    L.push([y.y, Math.round(y.contrib / k), Math.round(y.invested / k), Math.round(y.net / k),
+            Math.round((y.fee + y.tax) / k), Math.round(y.end / k), Math.round(real ? y.end : y.end / y.defl)]);
+  });
+  return L.map(function(r){ return r.map(csvCell).join(','); }).join('\r\n');
+}
+function downloadCSV(){
+  var csv = buildCSV(currentSim);
+  var name = 'investment-growth-' + currentSim.p.years + 'y-' + state.rate + 'pc.csv';
+  try {
+    var blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name; a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.parentNode.removeChild(a); }, 400);
+  } catch(e){
+    var w = window.open('', '_blank');
+    if (w){ w.document.title = name; w.document.body.style.whiteSpace = 'pre'; w.document.body.textContent = csv; }
+    else alert('Could not start the download — copy the table from the page instead.');
+  }
+}
+
+/* ================================================================
+   9. WIRING
+   ================================================================ */
+var currentSim = null, rafId = 0, persistTimer = 0;
+
+function render(){
+  buildFormatters();
+  currentSim = simulate(params(state));
+  renderSummary(currentSim);
+  renderGrowth(currentSim);
+  renderSens(currentSim);
+  renderTable(currentSim);
+  updateChip();
+}
+function scheduleRender(){
+  if (rafId) return;
+  rafId = requestAnimationFrame(function(){ rafId = 0; render(); });
+}
+function afterChange(){
+  scheduleRender();
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(persist, 400);
+}
+function updateChip(){
+  var chip = $('#baseChip');
+  if (!baseline){ chip.classList.remove('on'); return; }
+  chip.classList.add('on');
+  var v = state.basis === 'real' ? baseline.sim.total.bal / baseline.sim.total.defl : baseline.sim.total.bal;
+  $('#baseVal').textContent = money(v) + ' · ' + baseline.label;
+}
+
+function displayValue(key){
+  var el = document.getElementById(key);
+  return el.getAttribute('data-kind') === 'money' ? plain(state[key]) : String(Math.round(state[key] * 100) / 100);
+}
+function syncOne(key){
+  var el = document.getElementById(key);
+  if (el) el.value = displayValue(key);
+  var rng = document.getElementById(key + '_r');
+  if (rng) rng.value = String(clamp(state[key], +rng.min, +rng.max));
+}
+function syncInputs(){
+  ['initial','contrib','years','rate','fee','inflation','tax'].forEach(syncOne);
+  $('#freq').value = String(state.freq);
+  $('#timing').value = state.timing;
+  $('#compounding').value = String(state.compounding);
+  $('#indexContrib').checked = !!state.indexContrib;
+  $('#patterns').checked = !!state.patterns;
+  $('#currency').value = state.currency;
+  document.getElementById(state.basis === 'real' ? 'basis-real' : 'basis-nom').checked = true;
+  var off = !state.contrib;
+  ['freq','timing','indexContrib'].forEach(function(id){ document.getElementById(id).disabled = off; });
+  $('#contrib').closest('.field').classList.toggle('has-off', off);
+  Array.prototype.forEach.call(document.querySelectorAll('.aff.cur'), function(e){ e.textContent = sym(); });
+  Array.prototype.forEach.call(document.querySelectorAll('.cur-min'), function(e){ e.textContent = sym() + '0'; });
+  Array.prototype.forEach.call(document.querySelectorAll('.cur-max'), function(e){ e.textContent = sym() + '1M'; });
+  Array.prototype.forEach.call(document.querySelectorAll('.cur-c-max'), function(e){ e.textContent = sym() + '10k'; });
+}
+
+function onNumInput(el){
+  var key = el.getAttribute('data-key');
+  /* money fields hold whole currency units, so strip every non-digit: the
+     grouping separator is "." in de-DE and "," in en-AU, and neither may be
+     mistaken for a decimal point. Percent/year fields keep the point. */
+  var raw = el.getAttribute('data-kind') === 'money'
+    ? el.value.replace(/[^0-9]/g, '')
+    : el.value.replace(/[^0-9.]/g, '');
+  var n = parseFloat(raw);
+  if (!isFinite(n)) n = 0;
+  var lim = LIMITS[key] || [0, 1e12];
+  n = clamp(n, lim[0], lim[1]);
+  if (key === 'years') n = Math.max(1, Math.round(n));
+  state[key] = n;
+  var rng = document.getElementById(key + '_r');
+  if (rng) rng.value = String(clamp(n, +rng.min, +rng.max));
+  if (key === 'contrib') syncDisable();
+  afterChange();
+}
+function onRange(el){
+  var key = el.getAttribute('data-for');
+  var n = parseFloat(el.value);
+  if (key === 'years') n = Math.round(n);
+  state[key] = n;
+  var inp = document.getElementById(key);
+  if (inp) inp.value = displayValue(key);
+  if (key === 'contrib') syncDisable();
+  afterChange();
+}
+function syncDisable(){
+  var off = !state.contrib;
+  ['freq','timing','indexContrib'].forEach(function(id){ document.getElementById(id).disabled = off; });
+}
+
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  var mt = document.querySelector('meta[name="theme-color"]');
+  if (mt) mt.setAttribute('content', t === 'dark' ? '#272B2F' : '#F8F8F8');
+  $('#themeTxt').textContent = t === 'dark' ? 'Light' : 'Dark';
+  $('#themeBtn').setAttribute('aria-pressed', String(t === 'light'));
+  $('#themeIcon').innerHTML = t === 'dark'
+    ? '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"></path>'
+    : '<path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.5 6.5 0 0 0 9.8 9.8z"></path>';
+  try { localStorage.setItem('igc.theme', t); } catch(e){}
+}
+
+function hoverGrowth(clientX){
+  if (!G || !G.pts.length) return;
+  var sr = G.svg.getBoundingClientRect();
+  if (!sr.width) return;
+  var mx = (clientX - sr.left) * (G.W / sr.width);
+  var frac = (mx - G.L) / G.plotW;
+  growthAt(Math.round(clamp(frac, 0, 1) * (G.pts.length - 1)));
+}
+function clearGrowthHover(){
+  if (!G) return;
+  var l = G.svg.querySelector('#gHover');
+  if (l) l.innerHTML = '';
+  G.i = -1;
+}
+function hoverSens(clientX){
+  if (!S) return;
+  var sr = S.svg.getBoundingClientRect();
+  if (!sr.width) return;
+  var mx = (clientX - sr.left) * (S.W / sr.width);
+  var k = Math.floor((mx - S.L) / S.band);
+  if (k < 0 || k >= S.bars.length){ hideTip('#sensTip'); return; }
+  sensAt(k);
+}
+
+function init(){
+  var storedTheme = null;
+  try { storedTheme = localStorage.getItem('igc.theme'); } catch(e){}
+  var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+  setTheme(storedTheme === 'light' || storedTheme === 'dark' ? storedTheme : (prefersLight ? 'light' : 'dark'));
+
+  if (!parseHash()) loadStored();
+  buildFormatters();
+  syncInputs();
+  render();
+  persist();
+
+  var form = $('#inputs');
+  form.addEventListener('submit', function(e){ e.preventDefault(); });
+  form.addEventListener('input', function(e){
+    var t = e.target;
+    if (t.type === 'range') onRange(t);
+    else if (t.getAttribute && t.getAttribute('data-kind')) onNumInput(t);
+  });
+  form.addEventListener('change', function(e){
+    var t = e.target;
+    if (t.tagName === 'SELECT' || t.type === 'checkbox'){
+      var key = t.getAttribute('data-key');
+      if (!key) return;
+      state[key] = (t.type === 'checkbox') ? t.checked
+        : (key === 'freq' || key === 'compounding') ? +t.value : t.value;
+      afterChange();
+    }
+  });
+  form.addEventListener('focusin', function(e){
+    if (e.target.getAttribute && e.target.getAttribute('data-kind')) e.target.select();
+  });
+  form.addEventListener('focusout', function(e){
+    if (e.target.getAttribute && e.target.getAttribute('data-kind')) syncOne(e.target.getAttribute('data-key'));
+  });
+
+  $('#currency').addEventListener('change', function(){
+    state.currency = this.value;
+    buildFormatters();
+    syncInputs();
+    afterChange();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="basis"]'), function(r){
+    r.addEventListener('change', function(){
+      if (!this.checked) return;
+      state.basis = this.value;
+      afterChange();
+    });
+  });
+  $('#themeBtn').addEventListener('click', function(){
+    setTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    render();
+  });
+  $('#pinBtn').addEventListener('click', function(){
+    baseline = { sim: currentSim, label: fmtPct(state.rate) + ' for ' + currentSim.p.years + ' yrs' };
+    render();
+  });
+  $('#clearBase').addEventListener('click', function(){ baseline = null; render(); });
+  $('#resetBtn').addEventListener('click', function(){
+    var cur = state.currency, basis = state.basis, pat = state.patterns;
+    state = Object.assign({}, DEFAULTS, { currency: cur, basis: basis, patterns: pat });
+    baseline = null;
+    syncInputs();
+    render();
+    persist();
+  });
+  /* scroll to the disclaimer without putting "#disclaimer" in the address bar —
+     the hash carries the scenario, and a copied link must keep carrying it */
+  var dLink = document.querySelector('a[href="#disclaimer"]');
+  if (dLink) dLink.addEventListener('click', function(e){
+    e.preventDefault();
+    var el = $('#disclaimer');
+    if (!el) return;
+    var slow = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    try { el.scrollIntoView({ behavior: slow ? 'auto' : 'smooth', block: 'start' }); }
+    catch(err){ el.scrollIntoView(); }
+  });
+  $('#printBtn').addEventListener('click', function(){ window.print(); });
+  $('#csvBtn').addEventListener('click', downloadCSV);
+  $('#linkBtn').addEventListener('click', function(){
+    clearTimeout(persistTimer); persist();
+    var url = location.href;
+    var say = function(msg){
+      $('#linkTxt').textContent = msg;
+      setTimeout(function(){ $('#linkTxt').textContent = 'Copy link'; }, 1900);
+    };
+    var fallback = function(){
+      var ta = document.createElement('textarea');
+      ta.value = url; ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed'; ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch(e){}
+      document.body.removeChild(ta);
+      say(ok ? 'Copied' : 'Copy failed');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(url).then(function(){ say('Copied'); }, fallback);
+    } else fallback();
+  });
+
+  /* hover / focus layers */
+  var gw = $('#growthWrap');
+  gw.addEventListener('pointermove', function(e){ hoverGrowth(e.clientX); });
+  gw.addEventListener('pointerdown', function(e){ hoverGrowth(e.clientX); });
+  gw.addEventListener('pointerleave', function(){ hideTip('#growthTip'); clearGrowthHover(); });
+  $('#growthSvg').addEventListener('keydown', function(e){
+    if (!G) return;
+    var n = G.pts.length, step = e.shiftKey ? 12 : 1, i = G.i < 0 ? n - 1 : G.i, used = true;
+    if (e.key === 'ArrowRight') i += step;
+    else if (e.key === 'ArrowLeft') i -= step;
+    else if (e.key === 'Home') i = 0;
+    else if (e.key === 'End') i = n - 1;
+    else if (e.key === 'Escape'){ hideTip('#growthTip'); clearGrowthHover(); return; }
+    else used = false;
+    if (!used) return;
+    e.preventDefault();
+    growthAt(clamp(i, 0, n - 1));
+  });
+  $('#growthSvg').addEventListener('focus', function(){ if (G && G.i < 0) growthAt(G.pts.length - 1); });
+  $('#growthSvg').addEventListener('blur', function(){ hideTip('#growthTip'); clearGrowthHover(); });
+
+  var sw = $('#sensWrap');
+  sw.addEventListener('pointermove', function(e){ hoverSens(e.clientX); });
+  sw.addEventListener('pointerdown', function(e){ hoverSens(e.clientX); });
+  sw.addEventListener('pointerleave', function(){ hideTip('#sensTip'); });
+  $('#sensSvg').addEventListener('keydown', function(e){
+    if (!S) return;
+    var n = S.bars.length, i = S.i < 0 ? 0 : S.i, used = true;
+    if (e.key === 'ArrowRight') i += 1;
+    else if (e.key === 'ArrowLeft') i -= 1;
+    else if (e.key === 'Home') i = 0;
+    else if (e.key === 'End') i = n - 1;
+    else if (e.key === 'Escape'){ hideTip('#sensTip'); return; }
+    else used = false;
+    if (!used) return;
+    e.preventDefault();
+    sensAt(clamp(i, 0, n - 1));
+  });
+  $('#sensSvg').addEventListener('blur', function(){ hideTip('#sensTip'); });
+
+  /* responsive re-render, width changes only */
+  var lastW = 0;
+  var onResize = function(){
+    var w = $('#growthWrap').clientWidth;
+    if (Math.abs(w - lastW) < 2) return;
+    lastW = w;
+    hideTip('#growthTip'); hideTip('#sensTip');
+    render();
+  };
+  lastW = $('#growthWrap').clientWidth;
+  if (window.ResizeObserver){
+    var ro = new ResizeObserver(function(){ onResize(); });
+    ro.observe($('#growthWrap'));
+  } else {
+    window.addEventListener('resize', onResize);
+  }
+  /* print on a light ground: SVG colours are baked at render time, so the theme
+     must be light before the charts are rebuilt for paper. */
+  var printPrev = null;
+  window.addEventListener('beforeprint', function(){
+    hideTip('#growthTip'); hideTip('#sensTip');
+    printPrev = document.documentElement.getAttribute('data-theme');
+    if (printPrev === 'dark') document.documentElement.setAttribute('data-theme', 'light');
+    render();
+  });
+  window.addEventListener('afterprint', function(){
+    if (printPrev && printPrev !== document.documentElement.getAttribute('data-theme')){
+      document.documentElement.setAttribute('data-theme', printPrev);
+      render();
+    }
+    printPrev = null;
+  });
+  window.addEventListener('hashchange', function(){
+    if (parseHash()){ syncInputs(); render(); }
+  });
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+
+})();
+</script>
+</body>
+</html>
