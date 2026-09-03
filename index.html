@@ -281,7 +281,15 @@ tbody tr:nth-child(even) td:first-child{background:var(--sunken)}
 tbody tr:hover td{background:var(--accent-soft)}
 tbody td{border-bottom:1px solid var(--grid)}
 tbody td.em{font-weight:600;color:var(--ink)}
-tfoot td{font-weight:700;border-top:1px solid var(--hair);background:var(--card)}
+tr.tot td,tr.tot td:first-child{font-weight:700;border-top:1px solid var(--hair);border-bottom:0;background:var(--card)}
+tbody.extend td,tbody.extend td:first-child{background:var(--sunken)}
+tbody.extend tr:hover td{background:var(--accent-soft)}
+tbody.extend th.grouprow{
+  text-align:left;padding:13px 10px 8px 18px;background:var(--card);
+  font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--ink-3);border-top:1px solid var(--hair);position:static;
+}
+tbody.extend th.grouprow span{text-transform:none;letter-spacing:0;font-weight:400;color:var(--ink-3);opacity:.85}
 
 footer{max-width:1400px;margin:0 auto;padding:4px 20px 44px;color:var(--ink-3);font-size:11.5px;line-height:1.6}
 footer a,.disclaimer a{color:var(--accent)}   /* --accent-2 gold falls under 4.5:1 on white */
@@ -568,6 +576,7 @@ footer a,.disclaimer a{color:var(--accent)}   /* --accent-2 gold falls under 4.5
           <caption class="sr-only">Balance at the end of each year, with contributions, earnings, fees and tax.</caption>
           <thead><tr id="tableHead"></tr></thead>
           <tbody id="tableBody"></tbody>
+          <tbody id="tableExtend" class="extend"></tbody>
         </table>
       </div>
     </div>
@@ -1441,6 +1450,43 @@ function contribNote(sim){
 }
 
 var COLS = ['Year', 'Contributions', 'Total invested', 'Earnings', 'Fees + tax', 'Balance', ''];
+var EXTEND = [5, 10, 15], EXTEND_CAP = 70;
+
+/*
+  "What if you just kept going?" — the same question the rate chart asks of the
+  return, asked of the horizon instead. Everything is held fixed except the
+  number of years, so each row is the extra period's own contributions,
+  earnings and costs, ending at that year's balance.
+
+  One simulation covers every horizon: an N+15 year run reproduces years 1..N
+  exactly, because none of the inputs depend on when the run stops.
+*/
+function extensions(real){
+  var base = Math.round(state.years);
+  var hs = EXTEND.filter(function(h){ return base + h <= EXTEND_CAP; });
+  if (!hs.length) return [];
+  var p = params(state);
+  p.years = base + hs[hs.length - 1];
+  var ext = simulate(p);
+  return hs.map(function(h){
+    var end = ext.years[base + h - 1];
+    var contrib = 0, net = 0, cost = 0;
+    for (var i = base; i < base + h; i++){
+      var y = ext.years[i], d = real ? y.defl : 1;   /* deflate each year on its own date */
+      contrib += y.contrib / d;
+      net     += y.net / d;
+      cost    += (y.fee + y.tax) / d;
+    }
+    var k = real ? end.defl : 1;
+    return {
+      h: h, year: base + h,
+      contrib: contrib, net: net, cost: cost,
+      invested: end.invested / k,
+      balance: end.end / k,
+      other: real ? end.end : end.end / end.defl
+    };
+  });
+}
 function renderTable(sim){
   var real = state.basis === 'real';
   COLS[6] = real ? 'In actual ' + sym() : "In today's " + sym();
@@ -1466,29 +1512,52 @@ function renderTable(sim){
   });
   var body = $('#tableBody');
   body.textContent = '';
-  rows.forEach(function(r){
-    var tr = document.createElement('tr');
-    r.forEach(function(c, i){
-      var td = document.createElement('td');
-      td.textContent = c;
-      if (i === 5) td.className = 'em';
-      tr.appendChild(td);
-    });
-    body.appendChild(tr);
-  });
+  rows.forEach(function(r){ body.appendChild(row(r, '', 5)); });
+  /* the horizon's totals close its own row group, so nothing below can be
+     mistaken for part of them */
   var t = sim.total, kk = real ? t.defl : 1;
-  var totals = ['All ' + sim.p.years + ' years', money((t.invested - sim.p.initial) / kk), money(t.invested / kk),
-                money(t.earnings / kk), money((t.fees + t.tax) / kk), money(t.bal / kk),
-                money(real ? t.bal : t.bal / t.defl)];
-  var old = $('#yearTable').querySelector('tfoot');
-  if (old) old.parentNode.removeChild(old);
-  var tf = document.createElement('tfoot');
-  var tr2 = document.createElement('tr');
-  totals.forEach(function(c){ var td = document.createElement('td'); td.textContent = c; tr2.appendChild(td); });
-  tf.appendChild(tr2);
-  $('#yearTable').appendChild(tf);
+  body.appendChild(row(['All ' + sim.p.years + ' years', money((t.invested - sim.p.initial) / kk),
+    money(t.invested / kk), money(t.earnings / kk), money((t.fees + t.tax) / kk),
+    money(t.bal / kk), money(real ? t.bal : t.bal / t.defl)], 'tot', -1));
+
+  var host = $('#tableExtend');
+  host.textContent = '';
+  var exts = extensions(real);
+  if (exts.length){
+    var hr = document.createElement('tr');
+    var th = document.createElement('th');
+    th.className = 'grouprow';
+    th.colSpan = COLS.length;
+    th.setAttribute('scope', 'rowgroup');
+    th.appendChild(document.createTextNode('If you kept going '));
+    var note = document.createElement('span');
+    note.textContent = '— same contributions and assumptions, just more years';
+    th.appendChild(note);
+    hr.appendChild(th);
+    host.appendChild(hr);
+    exts.forEach(function(e){
+      host.appendChild(row([
+        'Year ' + e.year + ' (+' + e.h + ')',
+        money(e.contrib), money(e.invested), money(e.net), money(e.cost),
+        money(e.balance), money(e.other)
+      ], '', 5));
+    });
+  }
+
   $('#tableSub').textContent = 'End of each year' + (real ? ", in today's money" : '') +
-    '. Contributions exclude the ' + money(sim.p.initial) + ' you started with.';
+    '. Contributions exclude the ' + money(sim.p.initial) + ' you started with' +
+    (exts.length ? ' — scroll to the end to see what a few more years would add.' : '.');
+}
+function row(cells, cls, emIdx){
+  var tr = document.createElement('tr');
+  if (cls) tr.className = cls;
+  cells.forEach(function(c, i){
+    var td = document.createElement('td');
+    td.textContent = c;
+    if (i === emIdx) td.className = 'em';
+    tr.appendChild(td);
+  });
+  return tr;
 }
 
 /* ================================================================
@@ -1534,6 +1603,17 @@ function buildCSV(sim){
     L.push([y.y, Math.round(y.contrib / k), Math.round(y.invested / k), Math.round(y.net / k),
             Math.round((y.fee + y.tax) / k), Math.round(y.end / k), Math.round(real ? y.end : y.end / y.defl)]);
   });
+  var exts = extensions(real);
+  if (exts.length){
+    L.push([]);
+    L.push(['If you kept going - same contributions and assumptions, just more years']);
+    L.push(['Period', 'Contributions', 'Total invested', 'Earnings after fees and tax', 'Fees and tax', 'Balance',
+            real ? 'Balance (actual money)' : "Balance (today's money)"]);
+    exts.forEach(function(e){
+      L.push(['Year ' + e.year + ' (+' + e.h + ' years)', Math.round(e.contrib), Math.round(e.invested),
+              Math.round(e.net), Math.round(e.cost), Math.round(e.balance), Math.round(e.other)]);
+    });
+  }
   return L.map(function(r){ return r.map(csvCell).join(','); }).join('\r\n');
 }
 function downloadCSV(){
