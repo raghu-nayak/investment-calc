@@ -92,6 +92,9 @@ and on the chart axes.
   can see what a change to one assumption actually costs or buys.
 - **CSV** exports the assumptions plus the full year-by-year table.
 - **Print** renders on a light ground, one scenario per page.
+- **On a phone, a chart readout stays put** when you lift your finger, until you tap
+  somewhere else — a touch pointer is destroyed on release, so hiding on `pointerleave`
+  the way a mouse does would wipe the readout the tap had just asked for.
 - Charts are hand-drawn SVG with a crosshair tooltip, keyboard navigation
   (arrow keys, `Shift` for a year at a time), a legend, direct labels and a table view
   — so no value is reachable only by hovering. The optional pattern fills cover
