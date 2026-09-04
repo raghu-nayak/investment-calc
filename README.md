@@ -132,6 +132,32 @@ Default input values live in the `DEFAULTS` object in the script. An arrow key
 moves a field by its slider's own `step`; `STEPS` is only the fallback for a
 field with no slider.
 
+- `APP_VERSION` — the version shown in the footer and written into the CSV
+  header. The footer also carries it as a literal so it still prints on a page
+  whose script never ran, and a test holds the two to the same figure. Bump it
+  in the same commit as the change it describes: patch for wording, styling or a
+  corrected figure, minor for a new input, mode or chart, major for a change that
+  makes an existing shared link read differently.
+
+## Tests
+
+The engine between the `engine:start` and `engine:end` markers is pure — no DOM,
+no globals, no display logic — so it can be pulled out of the page and run in
+node:
+
+```sh
+node test.js index.html
+```
+
+68 assertions: contributions falling in the right months and indexing once a
+year rather than once a month, the balance checked against the closed form for
+both yearly and monthly compounding, the effective return after fees and tax,
+every yearly row closing on what it opened with plus the flows, the three chart
+bands always rebuilding the balance exactly, simple earnings holding to the
+return paid on capital alone, a fee with no return putting you under what you
+paid in, the deflator discounting each point on its own date, and a sweep of
+every combination the sliders reach staying finite and adding up.
+
 ## Disclaimer
 
 **This calculator is provided for general information and educational purposes only.
