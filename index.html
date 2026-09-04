@@ -1843,22 +1843,27 @@ function propagate(key){
   if (key === 'contrib') syncDisable();
   afterChange();
 }
-/* Up and down move a field by the smallest amount worth thinking about: 500 of
-   whatever you are counting in, a year, a tenth of a point — and 50 for the
-   contribution, which is a per-period figure starting at 500, so 500 would be
-   a leap rather than a nudge. Shift makes it ten of those. Money steps ride the
-   same currency scale as the limits and the sliders, so a yen field moves in
-   50,000s rather than pretending 500 yen is a meaningful amount to add.
+/* Up and down move a field by exactly what its own slider moves, so the thumb
+   and the number can never drift apart. A range input snaps whatever you assign
+   it onto its step grid, so a half-notch nudge would leave the thumb pointing at
+   a figure the field isn't showing. That also gets the currency for free: the
+   slider's step has already been scaled by applyRanges, which is why nothing
+   here multiplies by curScale a second time. A field with no slider falls back
+   to the smallest amount worth thinking about for its kind — 500 of whatever
+   you are counting in, a year, a tenth of a point — and there the scale has to
+   be applied by hand. Shift makes it ten of those.
 
-   The step lands on a multiple of itself, so a figure typed off the grid —
-   52,340 — snaps to 52,500 rather than carrying the odd 340 along for the rest
-   of the session. */
+   Every slider here starts on a multiple of its own step, so landing the value
+   on a multiple of the step lands it on the slider's grid too — and a figure
+   typed off that grid, 12,340, snaps onto it rather than carrying the odd 340
+   along for the rest of the session. */
 var STEPS = { money: 500, int: 1, pct: 0.1 };
-var KEY_STEPS = { contrib: 50 };    /* by name, for a field that wants its own */
 function stepFor(el, key){
-  var isMoney = el.getAttribute('data-kind') === 'money';
-  var step = KEY_STEPS[key] || STEPS[el.getAttribute('data-kind')] || 1;
-  return isMoney ? step * curScale() : step;
+  var rng = document.getElementById(key + '_r');
+  var s = rng ? parseFloat(rng.step) : NaN;
+  if (isFinite(s) && s > 0) return s;
+  var step = STEPS[el.getAttribute('data-kind')] || 1;
+  return el.getAttribute('data-kind') === 'money' ? step * curScale() : step;
 }
 function nudge(el, dir, big){
   var key = el.getAttribute('data-key');
