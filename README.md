@@ -117,6 +117,15 @@ Default input values live in the `DEFAULTS` object in the script, and how far on
 press of an arrow key moves a field lives in `STEPS` (by kind) and `KEY_STEPS`
 (by name, for the fields that want their own).
 
+## Sibling tools
+
+Same design system, same one-file-no-dependencies rule:
+
+- [au-fire-calculator](https://github.com/raghu-nayak/au-fire-calculator) — the
+  earliest you could stop working, under Australian rules
+- [au-leverage-calculator](https://github.com/raghu-nayak/au-leverage-calculator) —
+  debt recycling, borrowing to invest and margin loans, measured against not borrowing
+
 ## Disclaimer
 
 **This calculator is provided for general information and educational purposes only.
