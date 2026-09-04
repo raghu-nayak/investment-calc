@@ -1824,15 +1824,51 @@ function onNumInput(el){
     : el.value.replace(/[^0-9.]/g, '');
   var n = parseFloat(raw);
   if (!isFinite(n)) n = 0;
+  state[key] = fit(key, n);
+  if (isMoney) regroup(el, raw === '' ? '' : plain(state[key]));
+  propagate(key);
+}
+/* A number is only worth storing once it is inside the field's own limits —
+   which for money move with the currency — and whole where the field is whole. */
+function fit(key, n){
   var lim = limitFor(key) || [0, 1e12];
   n = clamp(n, lim[0], lim[1]);
-  if (key === 'years') n = Math.max(1, Math.round(n));
-  state[key] = n;
-  if (isMoney) regroup(el, raw === '' ? '' : plain(n));
+  return key === 'years' ? Math.max(1, Math.round(n)) : n;
+}
+/* Everything that has to follow a number changing, whether it was typed or
+   nudged: the slider under it, the controls it disables, the projection. */
+function propagate(key){
   var rng = document.getElementById(key + '_r');
-  if (rng) rng.value = String(clamp(n, +rng.min, +rng.max));
+  if (rng) rng.value = String(clamp(state[key], +rng.min, +rng.max));
   if (key === 'contrib') syncDisable();
   afterChange();
+}
+/* Up and down move a field by the smallest amount worth thinking about: 500 of
+   whatever you are counting in, a year, a tenth of a point — and 50 for the
+   contribution, which is the one money field small enough that 500 would be a
+   leap rather than a nudge. Shift makes it ten of those. Money steps ride the
+   same currency scale as the limits and the sliders, so a yen field moves in
+   50,000s rather than pretending 500 yen is a meaningful amount to add.
+
+   The step lands on a multiple of itself, so a figure typed off the grid —
+   52,340 — snaps to 52,500 rather than carrying the odd 340 along for the rest
+   of the session. */
+var STEPS = { money: 500, int: 1, pct: 0.1 };
+var KEY_STEPS = { contrib: 50 };
+function stepFor(el, key){
+  var isMoney = el.getAttribute('data-kind') === 'money';
+  var step = KEY_STEPS[key] || STEPS[el.getAttribute('data-kind')] || 1;
+  return isMoney ? step * curScale() : step;
+}
+function nudge(el, dir, big){
+  var key = el.getAttribute('data-key');
+  var step = stepFor(el, key) * (big ? 10 : 1);
+  var v = state[key] || 0, eps = step * 1e-6;
+  var k = dir > 0 ? Math.floor((v + eps) / step) + 1 : Math.ceil((v - eps) / step) - 1;
+  state[key] = fit(key, Math.round(k * step * 1000) / 1000);
+  propagate(key);
+  el.value = displayValue(key);
+  el.select();
 }
 function onRange(el){
   var key = el.getAttribute('data-for');
@@ -1922,6 +1958,14 @@ function init(){
         : (key === 'freq' || key === 'compounding') ? +t.value : t.value;
       afterChange();
     }
+  });
+  form.addEventListener('keydown', function(e){
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    var t = e.target;                     /* sliders carry data-for, not data-kind, */
+    if (!t.getAttribute || !t.getAttribute('data-kind')) return;   /* and step themselves */
+    e.preventDefault();
+    nudge(t, e.key === 'ArrowUp' ? 1 : -1, e.shiftKey);
   });
   form.addEventListener('focusin', function(e){
     if (e.target.getAttribute && e.target.getAttribute('data-kind')) e.target.select();

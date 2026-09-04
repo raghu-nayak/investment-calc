@@ -95,6 +95,11 @@ and on the chart axes.
 - **On a phone, a chart readout stays put** when you lift your finger, until you tap
   somewhere else — a touch pointer is destroyed on release, so hiding on `pointerleave`
   the way a mouse does would wipe the readout the tap had just asked for.
+- **Up and down nudge any number field** by the smallest amount worth thinking
+  about — 500 for money, a year, 0.1 of a point for a rate, and 50 for the
+  contribution — with `Shift` for ten of those. Money steps ride the currency
+  scale, so a yen field moves in 50,000s. The step lands on a multiple of itself,
+  so 12,340 goes to 12,500 rather than 12,840.
 - Charts are hand-drawn SVG with a crosshair tooltip, keyboard navigation
   (arrow keys, `Shift` for a year at a time), a legend, direct labels and a table view
   — so no value is reachable only by hovering. The optional pattern fills cover
@@ -108,7 +113,9 @@ series colours are `--s1` / `--s2` / `--s3`; they were chosen to clear an OKLCH
 lightness band, a chroma floor, colour-vision-deficiency separation and 3:1 contrast
 against each theme's chart surface, so if you change them, keep those properties.
 
-Default input values live in the `DEFAULTS` object in the script.
+Default input values live in the `DEFAULTS` object in the script, and how far one
+press of an arrow key moves a field lives in `STEPS` (by kind) and `KEY_STEPS`
+(by name, for the fields that want their own).
 
 ## Disclaimer
 
