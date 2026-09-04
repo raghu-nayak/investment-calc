@@ -1,10 +1,23 @@
 # Investment Growth Calculator
 
+**[Open the calculator →](https://raghu-nayak.github.io/investment-calc/)**
+
+What a lump sum plus regular contributions grows to — after fees, after tax on
+earnings, in today's money or in actual dollars — with the balance broken into
+what you put in, what your capital earned, and what those earnings went on to
+earn.
+
 A single self-contained HTML file — no build step, no dependencies, no network calls.
 Open it from disk or publish it to GitHub Pages and it behaves identically.
 
-Features are modelled on the [Fidelity Canada growth calculator](https://www.fidelity.ca/en/growthcalculator/);
-the colour scheme is taken from [mortgage.monster](https://mortgage.monster/).
+Design system and interaction patterns are shared with its siblings,
+[au-fire-calculator](https://github.com/raghu-nayak/au-fire-calculator) (the
+earliest you could stop working, under Australian rules) and
+[au-leverage-calculator](https://github.com/raghu-nayak/au-leverage-calculator)
+(debt recycling, borrowing to invest and margin loans, each measured against not
+borrowing at all); the colour scheme comes from
+[mortgage.monster](https://mortgage.monster/), and the feature set is modelled on
+the [Fidelity Canada growth calculator](https://www.fidelity.ca/en/growthcalculator/).
 
 ## Run it locally
 
@@ -146,3 +159,4 @@ responsible for verifying any figure before acting on it.
 Before making any financial decision, seek advice from a licensed financial adviser,
 accountant or other qualified professional who can consider your individual
 circumstances.
+
