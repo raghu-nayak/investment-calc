@@ -1844,16 +1844,17 @@ function propagate(key){
   afterChange();
 }
 /* Up and down move a field by the smallest amount worth thinking about: 500 of
-   whatever you are counting in, a year, a tenth of a point. Shift makes it ten
-   of those. Money steps ride the same currency scale as the limits and the
-   sliders, so a yen field moves in 50,000s rather than pretending 500 yen is a
-   meaningful amount to add.
+   whatever you are counting in, a year, a tenth of a point — and 50 for the
+   contribution, which is a per-period figure starting at 500, so 500 would be
+   a leap rather than a nudge. Shift makes it ten of those. Money steps ride the
+   same currency scale as the limits and the sliders, so a yen field moves in
+   50,000s rather than pretending 500 yen is a meaningful amount to add.
 
    The step lands on a multiple of itself, so a figure typed off the grid —
    52,340 — snaps to 52,500 rather than carrying the odd 340 along for the rest
    of the session. */
 var STEPS = { money: 500, int: 1, pct: 0.1 };
-var KEY_STEPS = {};    /* by name, for any field that wants its own */
+var KEY_STEPS = { contrib: 50 };    /* by name, for a field that wants its own */
 function stepFor(el, key){
   var isMoney = el.getAttribute('data-kind') === 'money';
   var step = KEY_STEPS[key] || STEPS[el.getAttribute('data-kind')] || 1;

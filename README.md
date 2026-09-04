@@ -96,8 +96,8 @@ and on the chart axes.
   somewhere else — a touch pointer is destroyed on release, so hiding on `pointerleave`
   the way a mouse does would wipe the readout the tap had just asked for.
 - **Up and down nudge any number field** by the smallest amount worth thinking
-  about — 500 for money, a year, 0.1 of a point for a rate — with `Shift` for
-  ten of those. Money steps ride the currency
+  about — 500 for money, a year, 0.1 of a point for a rate, and 50 for the
+  contribution — with `Shift` for ten of those. Money steps ride the currency
   scale, so a yen field moves in 50,000s. The step lands on a multiple of itself,
   so 12,340 goes to 12,500 rather than 12,840.
 - Charts are hand-drawn SVG with a crosshair tooltip, keyboard navigation
