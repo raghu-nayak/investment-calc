@@ -186,3 +186,5 @@ Before making any financial decision, seek advice from a licensed financial advi
 accountant or other qualified professional who can consider your individual
 circumstances.
 
+Copyright &copy; 2026 Raghu Nayak. All rights reserved. The source is published
+here to be read and checked, not to be reused or redistributed.
